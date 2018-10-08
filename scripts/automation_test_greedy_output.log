@@ -1,0 +1,480 @@
+starting for art poisson
+pygame 1.9.4
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Read singapore rph map for minute 1260
+Read singapore rph map for minute 180
+Read singapore rph map for minute 540
+Read singapore rph map for minute 900
+Logging to /home/abhinav/workspace/logs
+alloc=[2,2,1,1,1,1,2,0,1,2,1,0,1,1,2,1,2,1,0,1,2,3,2,1,1]
+Evaluating pyERSEnv-ca-dynamic-1440-v6 for 100 episodes. Seed=42
+Wrapping with<class 'baselines.ers.wrappers.ERStoMMDPWrapper'>
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionSpaceNormalizerWrapper'>
+ac space low: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0.]
+ac space high: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1.]
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionWrapper'>
+{'blip_R': 0, 'R': 259}
+{'blip_R': 0, 'R': 247}
+{'blip_R': 0, 'R': 282}
+{'blip_R': 0, 'R': 298}
+{'blip_R': 0, 'R': 264}
+{'blip_R': 0, 'R': 252}
+{'blip_R': 0, 'R': 293}
+{'blip_R': 0, 'R': 274}
+{'blip_R': 0, 'R': 306}
+{'blip_R': 0, 'R': 266}
+{'blip_R': 0, 'R': 307}
+{'blip_R': 0, 'R': 268}
+{'blip_R': 0, 'R': 267}
+{'blip_R': 0, 'R': 288}
+{'blip_R': 0, 'R': 260}
+{'blip_R': 0, 'R': 288}
+{'blip_R': 0, 'R': 256}
+{'blip_R': 0, 'R': 262}
+{'blip_R': 0, 'R': 254}
+{'blip_R': 0, 'R': 266}
+{'blip_R': 0, 'R': 262}
+{'blip_R': 0, 'R': 282}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 293}
+{'blip_R': 0, 'R': 283}
+{'blip_R': 0, 'R': 287}
+{'blip_R': 0, 'R': 264}
+{'blip_R': 0, 'R': 270}
+{'blip_R': 0, 'R': 265}
+{'blip_R': 0, 'R': 274}
+{'blip_R': 0, 'R': 270}
+{'blip_R': 0, 'R': 254}
+{'blip_R': 0, 'R': 293}
+{'blip_R': 0, 'R': 254}
+{'blip_R': 0, 'R': 264}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 283}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 238}
+{'blip_R': 0, 'R': 257}
+{'blip_R': 0, 'R': 242}
+{'blip_R': 0, 'R': 245}
+{'blip_R': 0, 'R': 288}
+{'blip_R': 0, 'R': 288}
+{'blip_R': 0, 'R': 251}
+{'blip_R': 0, 'R': 265}
+{'blip_R': 0, 'R': 260}
+{'blip_R': 0, 'R': 273}
+{'blip_R': 0, 'R': 286}
+{'blip_R': 0, 'R': 286}
+{'blip_R': 0, 'R': 273}
+{'blip_R': 0, 'R': 316}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 267}
+{'blip_R': 0, 'R': 269}
+{'blip_R': 0, 'R': 243}
+{'blip_R': 0, 'R': 261}
+{'blip_R': 0, 'R': 277}
+{'blip_R': 0, 'R': 264}
+{'blip_R': 0, 'R': 273}
+{'blip_R': 0, 'R': 282}
+{'blip_R': 0, 'R': 266}
+{'blip_R': 0, 'R': 271}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 279}
+{'blip_R': 0, 'R': 261}
+{'blip_R': 0, 'R': 246}
+{'blip_R': 0, 'R': 292}
+{'blip_R': 0, 'R': 268}
+{'blip_R': 0, 'R': 266}
+{'blip_R': 0, 'R': 259}
+{'blip_R': 0, 'R': 269}
+{'blip_R': 0, 'R': 285}
+{'blip_R': 0, 'R': 267}
+{'blip_R': 0, 'R': 275}
+{'blip_R': 0, 'R': 291}
+{'blip_R': 0, 'R': 252}
+{'blip_R': 0, 'R': 277}
+{'blip_R': 0, 'R': 250}
+{'blip_R': 0, 'R': 263}
+{'blip_R': 0, 'R': 240}
+{'blip_R': 0, 'R': 278}
+{'blip_R': 0, 'R': 281}
+{'blip_R': 0, 'R': 247}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 256}
+{'blip_R': 0, 'R': 257}
+{'blip_R': 0, 'R': 285}
+{'blip_R': 0, 'R': 270}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 272}
+{'blip_R': 0, 'R': 270}
+{'blip_R': 0, 'R': 248}
+{'blip_R': 0, 'R': 290}
+{'blip_R': 0, 'R': 283}
+{'blip_R': 0, 'R': 278}
+{'blip_R': 0, 'R': 232}
+{'av_blip_reward': 0.0, 'episode': 99, 'std_reward': 15.651696393682059, 'eps': 0.7511548065110573, 'std_blip_reward': 0.0, 'fps': 1081.6629213759225, 'av_reward': 270.38}
+
+done for art poisson
+starting for sg poisson
+pygame 1.9.4
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Read singapore rph map for minute 1260
+Read singapore rph map for minute 180
+Read singapore rph map for minute 540
+Read singapore rph map for minute 900
+Logging to /home/abhinav/workspace/logs
+alloc=[1,0,1,0,0,0,0,3,0,0,2,3,2,4,2,0,1,2,3,1,0,3,3,1,0]
+Evaluating SgERSEnv-ca-dynamic-1440-v6 for 100 episodes. Seed=42
+Wrapping with<class 'baselines.ers.wrappers.ERStoMMDPWrapper'>
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionSpaceNormalizerWrapper'>
+ac space low: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0.]
+ac space high: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1.]
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionWrapper'>
+{'R': 328, 'blip_R': 0}
+{'R': 333, 'blip_R': 0}
+{'R': 335, 'blip_R': 0}
+{'R': 335, 'blip_R': 0}
+{'R': 335, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 346, 'blip_R': 0}
+{'R': 333, 'blip_R': 0}
+{'R': 327, 'blip_R': 0}
+{'R': 360, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 359, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 358, 'blip_R': 0}
+{'R': 342, 'blip_R': 0}
+{'R': 357, 'blip_R': 0}
+{'R': 362, 'blip_R': 0}
+{'R': 291, 'blip_R': 0}
+{'R': 338, 'blip_R': 0}
+{'R': 334, 'blip_R': 0}
+{'R': 355, 'blip_R': 0}
+{'R': 324, 'blip_R': 0}
+{'R': 344, 'blip_R': 0}
+{'R': 369, 'blip_R': 0}
+{'R': 326, 'blip_R': 0}
+{'R': 310, 'blip_R': 0}
+{'R': 320, 'blip_R': 0}
+{'R': 337, 'blip_R': 0}
+{'R': 354, 'blip_R': 0}
+{'R': 342, 'blip_R': 0}
+{'R': 358, 'blip_R': 0}
+{'R': 357, 'blip_R': 0}
+{'R': 348, 'blip_R': 0}
+{'R': 334, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 365, 'blip_R': 0}
+{'R': 357, 'blip_R': 0}
+{'R': 319, 'blip_R': 0}
+{'R': 338, 'blip_R': 0}
+{'R': 346, 'blip_R': 0}
+{'R': 358, 'blip_R': 0}
+{'R': 325, 'blip_R': 0}
+{'R': 361, 'blip_R': 0}
+{'R': 342, 'blip_R': 0}
+{'R': 371, 'blip_R': 0}
+{'R': 353, 'blip_R': 0}
+{'R': 344, 'blip_R': 0}
+{'R': 375, 'blip_R': 0}
+{'R': 341, 'blip_R': 0}
+{'R': 341, 'blip_R': 0}
+{'R': 355, 'blip_R': 0}
+{'R': 344, 'blip_R': 0}
+{'R': 336, 'blip_R': 0}
+{'R': 348, 'blip_R': 0}
+{'R': 337, 'blip_R': 0}
+{'R': 353, 'blip_R': 0}
+{'R': 306, 'blip_R': 0}
+{'R': 319, 'blip_R': 0}
+{'R': 355, 'blip_R': 0}
+{'R': 351, 'blip_R': 0}
+{'R': 353, 'blip_R': 0}
+{'R': 332, 'blip_R': 0}
+{'R': 379, 'blip_R': 0}
+{'R': 335, 'blip_R': 0}
+{'R': 324, 'blip_R': 0}
+{'R': 363, 'blip_R': 0}
+{'R': 350, 'blip_R': 0}
+{'R': 333, 'blip_R': 0}
+{'R': 332, 'blip_R': 0}
+{'R': 373, 'blip_R': 0}
+{'R': 343, 'blip_R': 0}
+{'R': 345, 'blip_R': 0}
+{'R': 375, 'blip_R': 0}
+{'R': 366, 'blip_R': 0}
+{'R': 366, 'blip_R': 0}
+{'R': 340, 'blip_R': 0}
+{'R': 337, 'blip_R': 0}
+{'R': 362, 'blip_R': 0}
+{'R': 347, 'blip_R': 0}
+{'R': 321, 'blip_R': 0}
+{'R': 351, 'blip_R': 0}
+{'R': 350, 'blip_R': 0}
+{'R': 340, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 339, 'blip_R': 0}
+{'R': 303, 'blip_R': 0}
+{'R': 354, 'blip_R': 0}
+{'R': 345, 'blip_R': 0}
+{'R': 335, 'blip_R': 0}
+{'R': 370, 'blip_R': 0}
+{'R': 327, 'blip_R': 0}
+{'R': 341, 'blip_R': 0}
+{'R': 361, 'blip_R': 0}
+{'R': 307, 'blip_R': 0}
+{'R': 341, 'blip_R': 0}
+{'R': 334, 'blip_R': 0}
+{'R': 331, 'blip_R': 0}
+{'R': 349, 'blip_R': 0}
+{'R': 320, 'blip_R': 0}
+{'R': 328, 'blip_R': 0}
+{'episode': 99, 'std_blip_reward': 0.0, 'av_blip_reward': 0.0, 'fps': 1022.0009207047572, 'std_reward': 16.589321866791302, 'av_reward': 342.88, 'eps': 0.7097228616005258}
+
+done for sg poisson
+starting for art poisson + blips
+pygame 1.9.4
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Read singapore rph map for minute 1260
+Read singapore rph map for minute 180
+Read singapore rph map for minute 540
+Read singapore rph map for minute 900
+Logging to /home/abhinav/workspace/logs
+alloc=[2,1,0,1,0,1,2,1,1,2,1,1,1,1,1,2,4,1,1,1,1,3,2,0,1]
+Evaluating pyERSEnv-ca-dynamic-blips-1440-v6 for 100 episodes. Seed=42
+Wrapping with<class 'baselines.ers.wrappers.ERStoMMDPWrapper'>
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionSpaceNormalizerWrapper'>
+ac space low: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0.]
+ac space high: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1.]
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionWrapper'>
+{'R': 195, 'blip_R': 9}
+{'R': 216, 'blip_R': 28}
+{'R': 253, 'blip_R': 13}
+{'R': 254, 'blip_R': 22}
+{'R': 280, 'blip_R': 40}
+{'R': 250, 'blip_R': 22}
+{'R': 261, 'blip_R': 20}
+{'R': 234, 'blip_R': 21}
+{'R': 247, 'blip_R': 22}
+{'R': 207, 'blip_R': 15}
+{'R': 242, 'blip_R': 22}
+{'R': 197, 'blip_R': 12}
+{'R': 242, 'blip_R': 33}
+{'R': 226, 'blip_R': 4}
+{'R': 249, 'blip_R': 30}
+{'R': 284, 'blip_R': 47}
+{'R': 265, 'blip_R': 30}
+{'R': 272, 'blip_R': 29}
+{'R': 252, 'blip_R': 25}
+{'R': 259, 'blip_R': 15}
+{'R': 258, 'blip_R': 6}
+{'R': 227, 'blip_R': 10}
+{'R': 288, 'blip_R': 36}
+{'R': 264, 'blip_R': 24}
+{'R': 228, 'blip_R': 23}
+{'R': 271, 'blip_R': 33}
+{'R': 207, 'blip_R': 8}
+{'R': 204, 'blip_R': 16}
+{'R': 259, 'blip_R': 24}
+{'R': 244, 'blip_R': 19}
+{'R': 239, 'blip_R': 16}
+{'R': 211, 'blip_R': 17}
+{'R': 240, 'blip_R': 35}
+{'R': 229, 'blip_R': 14}
+{'R': 227, 'blip_R': 22}
+{'R': 229, 'blip_R': 14}
+{'R': 203, 'blip_R': 12}
+{'R': 272, 'blip_R': 13}
+{'R': 213, 'blip_R': 17}
+{'R': 207, 'blip_R': 8}
+{'R': 263, 'blip_R': 31}
+{'R': 263, 'blip_R': 19}
+{'R': 212, 'blip_R': 7}
+{'R': 229, 'blip_R': 16}
+{'R': 213, 'blip_R': 13}
+{'R': 232, 'blip_R': 16}
+{'R': 216, 'blip_R': 14}
+{'R': 231, 'blip_R': 8}
+{'R': 265, 'blip_R': 36}
+{'R': 292, 'blip_R': 62}
+{'R': 308, 'blip_R': 55}
+{'R': 234, 'blip_R': 25}
+{'R': 204, 'blip_R': 14}
+{'R': 327, 'blip_R': 80}
+{'R': 269, 'blip_R': 19}
+{'R': 265, 'blip_R': 21}
+{'R': 240, 'blip_R': 23}
+{'R': 213, 'blip_R': 15}
+{'R': 254, 'blip_R': 32}
+{'R': 200, 'blip_R': 4}
+{'R': 268, 'blip_R': 29}
+{'R': 279, 'blip_R': 33}
+{'R': 247, 'blip_R': 23}
+{'R': 227, 'blip_R': 15}
+{'R': 220, 'blip_R': 13}
+{'R': 235, 'blip_R': 25}
+{'R': 249, 'blip_R': 9}
+{'R': 196, 'blip_R': 10}
+{'R': 286, 'blip_R': 43}
+{'R': 252, 'blip_R': 34}
+{'R': 238, 'blip_R': 28}
+{'R': 230, 'blip_R': 24}
+{'R': 254, 'blip_R': 12}
+{'R': 205, 'blip_R': 5}
+{'R': 283, 'blip_R': 37}
+{'R': 241, 'blip_R': 24}
+{'R': 245, 'blip_R': 24}
+{'R': 250, 'blip_R': 30}
+{'R': 223, 'blip_R': 14}
+{'R': 290, 'blip_R': 41}
+{'R': 222, 'blip_R': 14}
+{'R': 256, 'blip_R': 20}
+{'R': 328, 'blip_R': 72}
+{'R': 239, 'blip_R': 23}
+{'R': 231, 'blip_R': 15}
+{'R': 242, 'blip_R': 16}
+{'R': 280, 'blip_R': 38}
+{'R': 258, 'blip_R': 24}
+{'R': 204, 'blip_R': 14}
+{'R': 225, 'blip_R': 13}
+{'R': 229, 'blip_R': 13}
+{'R': 249, 'blip_R': 9}
+{'R': 243, 'blip_R': 30}
+{'R': 276, 'blip_R': 21}
+{'R': 297, 'blip_R': 55}
+{'R': 201, 'blip_R': 10}
+{'R': 290, 'blip_R': 44}
+{'R': 239, 'blip_R': 25}
+{'R': 323, 'blip_R': 79}
+{'R': 225, 'blip_R': 23}
+{'eps': 0.6671706446290693, 'av_blip_reward': 23.67, 'av_reward': 245.1, 'std_reward': 29.686192076451974, 'episode': 99, 'std_blip_reward': 14.751308416543937, 'fps': 960.7257282658597}
+
+done for art poisson + blips
+starting for sg poisson + blips
+pygame 1.9.4
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Read singapore rph map for minute 1260
+Read singapore rph map for minute 180
+Read singapore rph map for minute 540
+Read singapore rph map for minute 900
+Logging to /home/abhinav/workspace/logs
+alloc=[0,0,0,0,0,0,0,3,0,0,1,4,3,4,1,1,2,2,4,1,0,2,4,0,0]
+Evaluating SgERSEnv-ca-dynamic-blips-1440-v6 for 100 episodes. Seed=42
+Wrapping with<class 'baselines.ers.wrappers.ERStoMMDPWrapper'>
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionSpaceNormalizerWrapper'>
+ac space low: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0.]
+ac space high: [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1.]
+Wrapping with<class 'baselines.ers.wrappers.MMDPActionWrapper'>
+{'R': 252, 'blip_R': 0}
+{'R': 279, 'blip_R': 0}
+{'R': 331, 'blip_R': 26}
+{'R': 394, 'blip_R': 77}
+{'R': 346, 'blip_R': 34}
+{'R': 311, 'blip_R': 22}
+{'R': 249, 'blip_R': 0}
+{'R': 392, 'blip_R': 79}
+{'R': 329, 'blip_R': 42}
+{'R': 342, 'blip_R': 41}
+{'R': 338, 'blip_R': 30}
+{'R': 267, 'blip_R': 1}
+{'R': 331, 'blip_R': 1}
+{'R': 257, 'blip_R': 1}
+{'R': 273, 'blip_R': 0}
+{'R': 361, 'blip_R': 58}
+{'R': 377, 'blip_R': 35}
+{'R': 301, 'blip_R': 2}
+{'R': 327, 'blip_R': 24}
+{'R': 301, 'blip_R': 3}
+{'R': 252, 'blip_R': 0}
+{'R': 304, 'blip_R': 12}
+{'R': 228, 'blip_R': 0}
+{'R': 287, 'blip_R': 2}
+{'R': 246, 'blip_R': 0}
+{'R': 336, 'blip_R': 19}
+{'R': 308, 'blip_R': 25}
+{'R': 405, 'blip_R': 61}
+{'R': 282, 'blip_R': 10}
+{'R': 318, 'blip_R': 0}
+{'R': 307, 'blip_R': 4}
+{'R': 366, 'blip_R': 58}
+{'R': 289, 'blip_R': 11}
+{'R': 329, 'blip_R': 33}
+{'R': 313, 'blip_R': 6}
+{'R': 399, 'blip_R': 62}
+{'R': 305, 'blip_R': 0}
+{'R': 232, 'blip_R': 0}
+{'R': 415, 'blip_R': 89}
+{'R': 255, 'blip_R': 7}
+{'R': 294, 'blip_R': 0}
+{'R': 197, 'blip_R': 1}
+{'R': 356, 'blip_R': 42}
+{'R': 314, 'blip_R': 40}
+{'R': 349, 'blip_R': 40}
+{'R': 324, 'blip_R': 49}
+{'R': 292, 'blip_R': 0}
+{'R': 258, 'blip_R': 0}
+{'R': 325, 'blip_R': 23}
+{'R': 318, 'blip_R': 6}
+{'R': 323, 'blip_R': 20}
+{'R': 320, 'blip_R': 9}
+{'R': 228, 'blip_R': 0}
+{'R': 299, 'blip_R': 10}
+{'R': 233, 'blip_R': 0}
+{'R': 192, 'blip_R': 0}
+{'R': 210, 'blip_R': 6}
+{'R': 308, 'blip_R': 38}
+{'R': 320, 'blip_R': 0}
+{'R': 376, 'blip_R': 63}
+{'R': 309, 'blip_R': 22}
+{'R': 349, 'blip_R': 26}
+{'R': 236, 'blip_R': 0}
+{'R': 307, 'blip_R': 0}
+{'R': 338, 'blip_R': 38}
+{'R': 294, 'blip_R': 19}
+{'R': 325, 'blip_R': 28}
+{'R': 252, 'blip_R': 0}
+{'R': 394, 'blip_R': 65}
+{'R': 403, 'blip_R': 74}
+{'R': 300, 'blip_R': 1}
+{'R': 283, 'blip_R': 16}
+{'R': 253, 'blip_R': 11}
+{'R': 260, 'blip_R': 6}
+{'R': 277, 'blip_R': 7}
+{'R': 406, 'blip_R': 69}
+{'R': 275, 'blip_R': 7}
+{'R': 214, 'blip_R': 0}
+{'R': 253, 'blip_R': 11}
+{'R': 415, 'blip_R': 79}
+{'R': 285, 'blip_R': 0}
+{'R': 270, 'blip_R': 24}
+{'R': 248, 'blip_R': 5}
+{'R': 357, 'blip_R': 55}
+{'R': 367, 'blip_R': 59}
+{'R': 242, 'blip_R': 1}
+{'R': 292, 'blip_R': 18}
+{'R': 297, 'blip_R': 0}
+{'R': 318, 'blip_R': 0}
+{'R': 400, 'blip_R': 68}
+{'R': 396, 'blip_R': 79}
+{'R': 278, 'blip_R': 0}
+{'R': 302, 'blip_R': 15}
+{'R': 351, 'blip_R': 46}
+{'R': 276, 'blip_R': 5}
+{'R': 260, 'blip_R': 15}
+{'R': 412, 'blip_R': 84}
+{'R': 282, 'blip_R': 5}
+{'R': 409, 'blip_R': 68}
+{'R': 373, 'blip_R': 43}
+{'av_blip_reward': 22.91, 'std_reward': 53.96037064364921, 'eps': 0.658878730535949, 'fps': 948.7853719717666, 'av_reward': 309.28, 'episode': 99, 'std_blip_reward': 25.769786572651316}
+
+done for sg poisson + blips

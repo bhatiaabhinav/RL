@@ -1,0 +1,1 @@
+MPLBACKEND=qt5agg $GYM_PYTHON -m RL.common.plot_curves --env=$1 $2 $3 $4 $5
