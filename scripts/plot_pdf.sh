@@ -1,1 +1,0 @@
-MPLBACKEND=pdf $GYM_PYTHON -m RL.common.plot_curves --env=$1 $2 $3 $4 $5 $6 $7 $8 $9
