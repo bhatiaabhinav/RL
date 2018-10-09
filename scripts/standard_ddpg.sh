@@ -10,7 +10,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--wolpertinger_critic_train=False \
 	--log_norm_obs_alloc=False \
 	--log_norm_action=False \
-	--rms_norm_action=True \
+	--rms_norm_action=False \
 	--tau=0.001 \
 	--gamma=1 \
 	--exploration_episodes=10 \
@@ -29,7 +29,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=ddpg_rmsac \
+	--run_no_prefix=ddpg \
     --monitor=True \
     --video_interval=50
     # --render=True \
