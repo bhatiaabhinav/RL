@@ -26,6 +26,8 @@ class ConstrainedProjectionOptnetLayer(OptnetLayer):
         self._current_input = input_vector
         output = cplex_nearest_feasible(input_vector, self.constraints)[
             'feasible_action']
+        # also somehow get the lagrange multipliers
+        # can cplex do that?
         return output
 
     def gradients(self):
@@ -34,3 +36,8 @@ class ConstrainedProjectionOptnetLayer(OptnetLayer):
         by the method of differentiating the KKT conditions of the LP at the optimal point w.r.t the input variables
         '''
         raise NotImplementedError()
+        
+        '''
+        Get dervitives w.r.t each input one by one and concatenate them.
+        
+        '''
