@@ -1,0 +1,223 @@
+\documentclass[11 pt]{article}
+\usepackage{amsmath,amsfonts}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{pagecolor}
+
+\definecolor{bgcolor}{RGB}{30,30,30}
+\definecolor{fgcolor}{RGB}{225,225,225}
+\pagecolor{bgcolor}
+\color{fgcolor}
+
+\begin{document}
+
+\title{Optnet for DDPG Constrained $L_2$ Projection (QP)}
+\author{Abhinav Bhatia}
+\date{\today}
+\maketitle
+
+
+\section{Problem Statement}
+
+Given a given node $g$ (which has already been allocated $C$ resources) from the constraints tree, we want to allocate resources to it's $k$ children such that:
+\[\sum_i^k z_i = C \]
+\[\forall_i^k : 0 \le \check{C_i} \le z_i \le \hat{C_i} \le 1\]
+
+We are given $C$ and a vector $\vec{y} \in [0, 1]^k$. We want to project this vector to the nearest (by $L_2$ norm) feasible solution $\vec{z}$.
+
+
+\section{The Quadratic Program}
+
+\begin{equation} \label{qp}
+    \begin{aligned}
+        \underset{\vec{z}}{\min} \sum_i^k (z_i - y_i)^2 \quad &\text{subject to} \\
+        \sum_i^k z_i - C &= 0                   \qquad \lambda\\
+        \forall_i^k : z_i - \hat{C_i} &\le 0      \qquad \alpha_i\\
+        \forall_i^k : \check{C_i} - z_i &\le 0    \qquad \beta_i
+    \end{aligned}
+\end{equation}
+Here $\lambda,\alpha_i,\beta_i$ are the corresponding Lagrange multipliers.
+
+Since the objective function is \textit{strictly} convex and the constraints are convex too, there exists a unique solution to this QP.
+
+The objective can be rewritten as:
+\[f = \sum_i^k z_i^2 - \sum_i^k 2 y_i z_i + \sum_i^k y_i^2\]
+The last term is a constant and is not really a part of the QP. Whether we include it or not, either way, it does not affect the KKT conditions.
+
+If we want to write the objective function in form $\frac{1}{2}z^T Q^T z + c^Tz$, then $Q$ would be $2I$ and $\vec{c}$ would be $-2\vec{y}$.
+
+\section{The KKT Conditions}
+
+The Langragian is:
+\begin{equation}
+    L(\vec{z},\vec{\alpha},\vec{\beta},\lambda) = \sum_i^k (z_i-y_i)^2 + \lambda (\sum_i^k z_i - C) + \sum_i^k \alpha_i(z_i - \hat{C_i}) + \sum_i^k \beta_i(\check{C_i} - z_i)
+\end{equation}
+
+The KKT conditions (conditions satisfied by the solution $\vec{z}^*, \vec{\alpha}^*, \vec{\beta}^*, \lambda^*$ of the QP \ref{qp}) is given by
+\begin{align*}
+    &\nabla_{\vec{z},\lambda} L & = \vec{0} \\
+    \forall_i^k : \quad &\alpha_i(z_i - \hat{C_i}) & = 0 \\
+    \forall_i^k : \quad &\beta_i(\check{C_i} - z_i) & = 0
+\end{align*}
+which expand to:
+\begin{equation}\label{eqns_kkt}
+    \begin{cases}
+        \begin{aligned}
+            &\sum_i^k z_i - C & = 0 \\
+            \forall_i^k : \quad & 2(z_i-y_i) + \lambda + \alpha_i - \beta_i & = 0 \\
+            \forall_i^k : \quad & \alpha_i(z_i - \hat{C_i}) & = 0 \\
+            \forall_i^k : \quad & \beta_i(\check{C_i} - z_i) & = 0
+        \end{aligned}
+    \end{cases}
+\end{equation}
+i.e. $3k + 1$ equations.
+
+
+\section{Differentiating the KKT conditions}
+
+We can differentiate both sides of each equation in set of equations \ref{eqns_kkt} w.r.t to inputs $\vec{y}$ and $C$.
+
+The partial differential equations w.r.t. input $y_j$ are:
+\begin{equation}\label{eqns_wrt_y_j}
+    \begin{cases}
+        \begin{aligned}
+            & \sum_i^k \frac{\partial z_i}{\partial y_j} & = 0 &\quad (a)\\
+            
+            \forall_i^k : \quad & 2\frac{\partial z_i}{\partial y_j} - 2\delta_{ij} + \frac{\partial \lambda}{\partial y_j} + \frac{\partial \alpha_i}{\partial y_j} - \frac{\partial \beta_i}{\partial y_j} & = 0 &\quad (b)\\
+            
+            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial y_j}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial y_j} & = 0 &\quad (c)\\
+            
+            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial y_j}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial y_j}& = 0 &\quad (d)
+        \end{aligned}
+    \end{cases}
+\end{equation}
+Here $\delta_{ij}$ is the Kronecker delta function, which is $1$ when $i=j$, and $0$ otherwise.
+
+The partial differential equations w.r.t $C$ are:
+\begin{equation}\label{eqns_wrt_C}
+    \begin{cases}
+        \begin{aligned}
+            & \sum_i^k \frac{\partial z_i}{\partial C} - 1 & = 0 &\quad (a)\\
+            
+            \forall_i^k : \quad & 2\frac{\partial z_i}{\partial C} + \frac{\partial \lambda}{\partial C} + \frac{\partial \alpha_i}{\partial C} - \frac{\partial \beta_i}{\partial C} & = 0 &\quad (b) \\
+            
+            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial C}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial C} & = 0 &\quad (c) \\
+            
+            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial C}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial C}& = 0 &\quad (d)
+        \end{aligned}
+    \end{cases}
+\end{equation}
+
+The equations can be solved independently per input $y_j$ and $C$.
+
+
+\section{Solving system of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}}
+
+For equations \ref{eqns_wrt_y_j}, the variables are $\frac{\partial}{\partial y_j}$ of $\alpha_i,\beta_i,\lambda,z_i$. So there are $n=3k + 1$ variables and that many equations.
+Trying to write equations \ref{eqns_wrt_y_j} in matrix form:
+\[A_{n \times n}^{y_j}J_{n \times 1}^{y_j} = B_{n \times 1}^{y_j}\]
+where
+\[J^{y_j} = \frac{\partial}{\partial y_j}[\lambda,\alpha_1,\beta_1,z_1,...,\alpha_k,\beta_k,z_k]^T\]
+and
+\[
+A^{y_j} = \begin{bmatrix}
+    eqn \ref{eqns_wrt_y_j} & \vdots & \lambda & \alpha_1 & \beta_1 & z_1 & \cdots & \alpha_i & \beta_i & z_i \\
+    \cdots & \vdots & \hdotsfor{8} \\
+    a & \vdots & 0 & 0 & 0 & 1 & \cdots & 0 & 0 & 1 \\
+    b_1 & \vdots & 1 & 1 & -1 & 2 & \cdots & 0 & 0 & 0 \\
+    c_1 & \vdots & 0 & z_1-\hat{C_1} & 0 & \alpha_1 & \cdots & 0 & 0 & 0 \\
+    d_1 & \vdots & 0 & 0 & -z_1+\check{C_1} & -\beta_1 & \cdots & 0 & 0 & 0 \\
+    \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
+    b_k & \vdots & 1 & 0 & 0 & 0 & \cdots & 1 & -1 & 2 \\
+    c_k & \vdots & 0 & 0 & 0 & 0 & \cdots & z_k-\hat{C_k} & 0 & \alpha_k \\
+    d_k & \vdots & 0 & 0 & 0 & 0 & \cdots & 0 & -z_k+\check{C_k} & -\beta_k \\
+\end{bmatrix}
+\]
+and
+\[
+B^{y_j} = \begin{bmatrix}
+    0 \\
+    2\delta_{1j} \\
+    0 \\
+    0 \\
+    \vdots \\
+    2\delta_{kj} \\
+    0 \\
+    0 \\
+\end{bmatrix}
+\]
+Basically,
+\begin{equation} \label{eqn_A_yj}
+    A_{rc}^{y_j} = \begin{cases}
+        \begin{aligned}
+            1 &\quad    r=1,c=3m+1 & m=1,2,...,k \\
+            1 &\quad    r=3m-1,c=1 & m=1,2,...,k \\
+            1 &\quad    r=3m-1,c=r & m=1,2,...,k \\
+            -1 &\quad   r=3m-1,c=r+1 & m=1,2,...,k \\
+            2 &\quad    r=3m-1,c=r+2 & m=1,2,...,k \\
+            z_m-\hat{C_m} &\quad    r=3m,c=r-1 & m=1,2,...,k \\
+            \alpha_m &\quad r=3m,c=r+1 & m=1,2,...,k \\
+            -z_m+\check{C_m} &\quad  r=3m+1,c=r-1 & m=1,2,...,k \\
+            -\beta_m &\quad r=3m+1,c=r & m=1,2,...,k \\
+            0 &\quad \text{otherwise}
+        \end{aligned}
+    \end{cases}
+\end{equation}
+and
+\begin{equation} \label{eqn_B_yj}
+    B_r^{y_j} = \begin{cases}
+        \begin{aligned}
+            2 \delta_{mj} &\quad r=3m-1 & m=1,2,...,k \\
+            0 &\quad \text{otherwise}
+        \end{aligned}
+    \end{cases}
+\end{equation}
+Thus we can find
+\begin{equation}
+    J^{y_j} = (A^{y_j})^{-1} B^{y_j}
+\end{equation}
+
+Note from equation \ref{eqn_A_yj} that $A^{y_j}$ does not depend on $j$. Thus its inverse need not be computed seperately for each and every $j$.
+
+Also, It is clear from set of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C} that
+\begin{equation}\label{eqn_all_A_same}
+    \forall_j^k:\quad A^C = A^{y_j}
+\end{equation}
+Only $B^C$ is different:
+\begin{equation}
+    B_r^C = \begin{cases}
+        \begin{aligned}
+            1 &\quad r=1 \\
+            0 &\quad \text{otherwise}
+        \end{aligned}
+    \end{cases}
+\end{equation}
+Thus,
+\begin{equation}
+    J^{C} = (A^C)^{-1} B^{C}
+\end{equation}
+
+The overall Jacobian would be simply the horizontal contatenation:
+\begin{equation}
+    J_{(3k+1)\times (k+1)} = \begin{bmatrix}J^{y_1}&J^{y_2}&...&J^{y_k}&J^C\end{bmatrix}
+\end{equation}
+
+
+\section{The overall picture}
+
+From $J$, we can extract the rows corresponding to $z_i$ and transpose it and thus write $\nabla_{\vec{y},C}{\vec{z}}$, which is a $(k+1) \times k$ matrix.
+
+Thus we can get gradient of output $\vec{z}$ w.r.t network parameters $\theta \in \mathbb{R}^p$ using the chain rule as:
+
+\[(\nabla_{\theta}\vec{z})_{p \times k} = (\nabla_{\theta}(\vec{y},c))_{p \times (k+1)} (\nabla_{(\vec{y},C)}\vec{z})_{(k+1) \times k}\]
+
+
+\section{Computation requirements}
+Let $N$ be the size of the minibatch.
+
+Computation needed to compute $A^{-1}$ will be of order $k^3$. And luckily it need not be computed for all $y_j$ and $C$ (by \ref{eqn_all_A_same}). $A^{-1}B$ ($\propto k^2$) will be done $k$ times, i.e. $k^3$.
+Thus just $\mathcal{O}(k^3)$ per backward pass.
+
+For the entire minibatch, $\mathcal{O}(N k^3)$. Plus all the matrix operations can be parallelized on a GPU and $\nabla_{\theta}\vec{z}$ can be computed parallely for each minibatch item. Then $\nabla_{\theta}\vec{z}$ can be averaged (parallely per cell) across the minibatch in $\mathcal{O}(N)$ time.
+
+\end{document}

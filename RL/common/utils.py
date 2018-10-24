@@ -38,6 +38,12 @@ def my_video_schedule(episode_id, total_episodes, video_interval):
     return episode_id % video_interval == 0
 
 
+def kdel(i, j):
+    '''The Kronecker delta function. 1 when i=j. 0 otherwise'''
+
+    return 1 if i == j else 0
+
+
 def normalize(a, epsilon=1e-6):
     a = np.clip(a, 0, 1)
     a = a + epsilon

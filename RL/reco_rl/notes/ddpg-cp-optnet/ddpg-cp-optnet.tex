@@ -1,0 +1,193 @@
+\documentclass[11 pt]{article}
+\usepackage{amsmath, amsfonts}
+\usepackage[a4paper,margin=1in]{geometry}
+
+
+\begin{document}
+
+\title{Optnet for DDPG Constrained Projection}
+\author{Abhinav Bhatia}
+\date{\today}
+\maketitle
+
+For ease of implementation, we will consider only recursive greedy projection. i.e. do the allocations top down in reference to the constraints tree.
+
+
+\section{Problem Statement}
+
+Given a given node $g$ (which has already been allocated $C$ resources) from the constraints tree, we want to allocate resources to it's $k$ children such that:
+\[\sum_i^k z_i = C \]
+\[\forall_i^k : 0 \le \check{C_i} \le z_i \le \hat{C_i} \le 1\]
+
+We are given $C$ and a vector $\vec{y} \in [0, 1]^k$. We want to project this vector to the nearest feasible solution $\vec{z}$.
+
+
+\section{The Linear Program}
+
+\begin{align*}
+    \underset{\vec{z}}{\min} \sum_i^k |z_i - y_i| \quad \text{subject to}\\
+    \sum_i^k z_i = C\\
+    \forall_i^k : z_i \le \hat{C_i}\\
+    \forall_i^k : \check{C_i} \le z_i
+\end{align*}
+
+An equivalent linear program is:
+\begin{equation} \label{lp}
+    \begin{aligned}
+        \underset{\vec{d},\vec{z}}{\min} \sum_i^k d_i \quad &\text{subject to} \\
+        \sum_i^k z_i - C &= 0                   \qquad \lambda\\
+        \forall_i^k : y_i - z_i - d_i &\le 0      \qquad \mu_i\\
+        \forall_i^k : z_i - y_i - d_i &\le 0      \qquad \nu_i\\
+        \forall_i^k : z_i - \hat{C_i} &\le 0      \qquad \alpha_i\\
+        \forall_i^k : \check{C_i} - z_i &\le 0    \qquad \beta_i
+    \end{aligned}
+\end{equation}
+Here $\lambda,\mu_i,\nu_i,\alpha_i,\beta_i$ are the corresponding Lagrange multipliers.
+
+Thus there are $4k+1$ constraints.
+
+
+\section{The KKT Conditions}
+
+The Langragian is:
+\begin{equation}
+    \begin{aligned}
+        L(\vec{d},\vec{z},\vec{\mu},\vec{\nu},\vec{\alpha},\vec{\beta},\lambda) & = \sum_i^k d_i \\
+            & + \sum_i^k \mu_i(y_i - z_i - d_i) & + \sum_i^k \nu_i(z_i - y_i - d_i) \\
+            & + \sum_i^k \alpha_i(z_i - \hat{C_i}) & + \sum_i^k \beta_i(\check{C_i} - z_i) \\
+            & + \lambda (\sum_i^k z_i - C)
+    \end{aligned}
+\end{equation}
+
+The KKT conditions (conditions satisfied by the solution $\vec{d}^*, \vec{z}^*, \vec{\mu}^*, \vec{\nu}^*, \vec{\alpha}^*, \vec{\beta}^*, \lambda^*$ of the LP \ref{lp} is given by
+\begin{align*}
+    &\nabla_{\vec{d},\vec{z},\lambda} L & = \vec{0} \\
+    \forall_i^k: \quad &\mu_i(y_i - z_i - d_i) & = 0 \\
+    \forall_i^k : \quad &\nu_i(z_i - y_i - d_i) & = 0 \\
+    \forall_i^k : \quad &\alpha_i(z_i - \hat{C_i}) & = 0 \\
+    \forall_i^k : \quad &\beta_i(\check{C_i} - z_i) & = 0
+\end{align*}
+which expand to:
+\begin{equation}\label{eqns_kkt}
+    \begin{cases}
+        \begin{aligned}
+            &\sum_i^k z_i - C & = 0 \\
+            \forall_i^k : \quad & 1 + \mu_i + \nu_i & = 0\\
+            \forall_i^k : \quad & -\mu_i + \nu_i + \alpha_i - \beta_i + \lambda & = 0 \\
+            \forall_i^k : \quad & \mu_i(y_i - z_i - d_i) & = 0 \\
+            \forall_i^k : \quad & \nu_i(z_i - y_i - d_i) & = 0 \\
+            \forall_i^k : \quad & \alpha_i(z_i - \hat{C_i}) & = 0 \\
+            \forall_i^k : \quad & \beta_i(\check{C_i} - z_i) & = 0
+        \end{aligned}
+    \end{cases}
+\end{equation}
+
+
+\section{Differentiating the KKT conditions}
+
+We can differentiate both sides of each equation in set of equations \ref{eqns_kkt} w.r.t to inputs $\vec{y}$ and $C$.  
+
+The partial differential equations w.r.t. input $y_j$ are:
+\begin{equation}\label{eqns_wrt_y_j}
+    \begin{cases}
+        \begin{aligned}
+            & \sum_i^k \frac{\partial z_i}{\partial y_j} & = 0 &\quad (a)\\
+            
+            \forall_i^k : \quad & \frac{\partial\mu_i}{\partial y_j} + \frac{\partial \nu_i}{\partial y_j} & = 0 &\quad (b)\\
+            
+            \forall_i^k : \quad & -\frac{\partial \mu_i}{\partial y_j} + \frac{\partial \nu_i}{\partial y_j} + \frac{\partial \alpha_i}{\partial y_j} - \frac{\partial \beta_i}{\partial y_j} + \frac{\partial \lambda}{\partial y_j} & = 0 &\quad (c)\\
+            
+            \forall_i^k : \quad & \frac{\partial \mu_i}{\partial y_j}(y_i - z_i - d_i) + \mu_i (\delta_{ij} - \frac{\partial z_i}{\partial y_j} - \frac{\partial d_i}{\partial y_j}) & = 0 &\quad (d)\\
+            
+            \forall_i^k : \quad & \frac{\partial \nu_i}{\partial y_j}(- y_i + z_i - d_i) + \nu_i(-\delta_{ij} + \frac{\partial z_i}{\partial y_j} - \frac{\partial d_i}{\partial y_j}) & = 0 &\quad (e)\\
+            
+            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial y_j}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial y_j} & = 0 &\quad (f)\\
+            
+            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial y_j}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial y_j}& = 0 &\quad (g)
+        \end{aligned}
+    \end{cases}
+\end{equation}
+Here $\delta_{ij}$ is the Kronecker delta function, which is $1$ when $i=j$, and $0$ otherwise.
+
+Partial differential equations w.r.t $C$ are:
+\begin{equation}\label{eqns_wrt_C}
+    \begin{cases}
+        \begin{aligned}
+            & \sum_i^k \frac{\partial z_i}{\partial C} - 1 & = 0 \\
+            
+            \forall_i^k : \quad & \frac{\partial\mu_i}{\partial C} + \frac{\partial \nu_i}{\partial C} & = 0\\
+            
+            \forall_i^k : \quad & -\frac{\partial \mu_i}{\partial C} + \frac{\partial \nu_i}{\partial C} + \frac{\partial \alpha_i}{\partial C} - \frac{\partial \beta_i}{\partial C} + \frac{\partial \lambda}{\partial C} & = 0 \\
+            
+            \forall_i^k : \quad & \frac{\partial \mu_i}{\partial C}(y_i - z_i - d_i) + \mu_i (- \frac{\partial z_i}{\partial C} - \frac{\partial d_i}{\partial C}) & = 0 \\
+            
+            \forall_i^k : \quad & \frac{\partial \nu_i}{\partial C}(- y_i + z_i - d_i) + \nu_i(\frac{\partial z_i}{\partial C} - \frac{\partial d_i}{\partial C}) & = 0 \\
+            
+            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial C}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial C} & = 0 \\
+            
+            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial C}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial C}& = 0
+        \end{aligned}
+    \end{cases}
+\end{equation}
+
+The equations can be solved independently per input $y_j$ and $C$.
+
+
+\section{Solving system of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}}
+
+For equations \ref{eqns_wrt_y_j}, the variables are $\frac{\partial}{\partial y_j}$ of $\mu_i,\nu_i,\alpha_i,\beta_i,\lambda,d_i,z_i$. So there are $n=6k + 1$ variables and that many equations.
+Trying to write equations \ref{eqns_wrt_y_j} in matrix form:
+\[A_{n \times n}J_{n \times 1}^{y_j} = B_{n \times 1}\]
+where
+\[J^{y_j} = \frac{\partial}{\partial y_j}[\lambda,\mu_1,\nu_1,\alpha_1,\beta_1,d_1,z_1,\mu_2,...,z_2,...,u_k,...,z_k]^T\]
+and
+\[
+    A_{rc} =
+    \begin{cases}
+        \begin{aligned}
+            1 &\quad  r=1,c=6m+1 & m=1,2,...,k \\
+            1 &\quad  r=6m-4,c=r,r+1 & m=1,2,...,k \\
+            1 &\quad  r=6m-3,c=1,r,r+1 & m=1,2,...,k \\
+            -1 &\quad  r=6m-3,c=r-1,r+2 & m=1,2,...,k \\
+            y_m-z_m-d_m &\quad  r=6m-2,c=r-2 & m=1,2...,k \\
+            -\mu_m &\quad  r=6m-2,c=r+2,r+3 & m=1,2,...,k \\
+            -y_m+z_m-d_m &\quad  r=6m-1,c=r-2 & m=1,2,...,k \\
+            -\nu_m &\quad  r=6m-1,c=r+1 & m=1,2,...,k \\
+            \nu_m &\quad  r=6m-1,c=r+2 & m=1,2,...,k \\
+            z_m-\hat{C_m} &\quad  r=6m,c=r-2 & m=1,2,...,k \\
+            \alpha_m &\quad  r=6m,c=r+1 & m=1,2,...,k \\
+            -z_m+\check{C_m} &\quad  r=6m+1,c=r-2 & m=1,2,...,k \\
+            -\beta_m &\quad  r=6m+1,c=r & m=1,2,...,k \\
+            0 &\quad \text{otherwise}
+        \end{aligned}
+    \end{cases}
+\]
+and
+\[
+    B_{r} =
+    \begin{cases}
+        \begin{aligned}
+            -\mu_m \delta_{mj}  &\quad r=6m-2 && m=1,2,...,k \\
+            \nu_m \delta_{mj}   &\quad r=6m-1 && m=1,2,...,k \\
+            0 &\quad \text{otherwise}
+        \end{aligned}
+    \end{cases}
+\]
+Thus \[J^{y_j} = A^{-1}B\]
+
+Similary, we can find $J^C=\frac{\partial}{\partial C}[\lambda,\mu_1,\nu_1,\alpha_1,\beta_1,d_1,z_1,\mu_2,...,z_2,...,u_k,...,z_k]^T$ by solving set of equations \ref{eqns_wrt_C}.
+
+Then the overall Jacobian would be:
+\[J_{(6k+1)\times (k+1)} = \begin{bmatrix}J^{y_1}&J^{y_2}&...&J^{y_k}&J^C\end{bmatrix}\]
+
+
+\section{The overall picture}
+
+From $J$, we can extract the rows corresponding to $z_i$ and traspose it and thus write $\nabla_{\vec{y},C}{\vec{z}}$, which is a $(k+1) \times k$ matrix.
+
+Thus we can get gradient of output $\vec{z}$ w.r.t network parameters $\theta \in \mathbb{R}^p$ using the chain rule as:
+
+\[(\nabla_{\theta}\vec{z})_{p \times k} = (\nabla_{\theta}(\vec{y},c))_{p \times (k+1)} (\nabla_{(\vec{y},C)}\vec{z})_{(k+1) \times k}\]
+
+
+\end{document}
