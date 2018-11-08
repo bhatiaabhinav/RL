@@ -1,11 +1,12 @@
+import os
 import time
 
 import cplex  # noqa: F401
 import numpy as np
 import tensorflow as tf
 
-from RL.common.utils import py_func, tf_scale
 from RL.common.plot_renderer import PlotRenderer
+from RL.common.utils import py_func, tf_scale
 
 
 def _cplex_batch_CP(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: np.ndarray, k, N):
@@ -34,6 +35,8 @@ def _cplex_batch_CP(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: np.nda
             z_names_flat.append('z_{0}_{1}'.format(s, i))
 
     prob = cplex.Cplex()
+    max_threads = os.getenv('RL_CP_OPTNET_CPLEX_THREADS', 32)
+    prob.parameters.threads.set(max_threads)
 
     # objective:
     y_flat = y.flatten()
@@ -192,7 +195,7 @@ def cplex_batch_CP_jacobian(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax
 
 
 def tf_cplex_batch_CP_gradients(op, grads_wrt_z):
-    print("gradient graph being set up")
+    # print("gradient graph being set up")
     grads_wrt_z = tf.expand_dims(grads_wrt_z, 1)  # [N, 1, k]
     y = op.inputs[0]  # [N, k]
     c = op.inputs[1]  # [N]
@@ -299,17 +302,17 @@ def point_attraction_training_test(test_input, c, cmin, cmax, k):
     grads_max, grads_min, grads_avg = [], [], []
     loss_data = []
     grads_renderer = PlotRenderer(
-        title='Gradients', xlabel='step', ylabel='value', window_caption='Optnet Test')
+        title='Gradients', xlabel='step', ylabel='value', window_caption='Optnet Test', save_path='Optnet Test/gradients.png', auto_save=True)
     loss_renderer = PlotRenderer(
-        title='Loss', xlabel='step', ylabel='loss', window_caption='Optnet Test')
+        title='Loss', xlabel='step', ylabel='loss', window_caption='Optnet Test', save_path='Optnet Test/loss.png', auto_save=True)
     grads_renderer.plot([], grads_max, [], grads_avg, [], grads_min)
     loss_renderer.plot([], loss_data)
     z_renderer = PlotRenderer(title='z actual vs target', xlabel='base_id',
-                              ylabel='alloc', window_caption='Optnet Test')
+                              ylabel='alloc', window_caption='Optnet Test', save_path='Optnet Test/z.png', auto_save=True)
     z_renderer.plot(list(range(k)), z_target * 32,
                     'b-', list(range(k)), [0] * k, 'g')
     y_renderer = PlotRenderer(
-        title='y', xlabel='base_id', ylabel='value', window_caption='Optnet Test')
+        title='y', xlabel='base_id', ylabel='value', window_caption='Optnet Test', save_path='Optnet Test/y.png', auto_save=True)
     y_renderer.plot(list(range(k)), y_init)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
