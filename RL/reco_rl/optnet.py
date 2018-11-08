@@ -157,7 +157,9 @@ def _batch_KKT_diff_equations_coeffs_matrix(y: np.ndarray, c: np.ndarray, cmin: 
     """
     y, c, cmin, cmax, k, N = _preprocess_input_for_cplex_batch_CP(
         y, c, cmin, cmax, k)
+    print("Doing forward pass with batch of " + str(N))
     z, lambda_, alpha, beta = cplex_batch_CP_with_duals(y, c, cmin, cmax, k)
+    print("Forward pass done")
     A = np.zeros([N, 3 * k + 1, 3 * k + 1])
 
     for s in range(N):
@@ -180,7 +182,9 @@ def cplex_batch_CP_jacobian(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax
     y, c, cmin, cmax, k, N = _preprocess_input_for_cplex_batch_CP(
         y, c, cmin, cmax, k)
     A = _batch_KKT_diff_equations_coeffs_matrix(y, c, cmin, cmax, k)
+    print("inverting matrix")
     A_inv = np.linalg.inv(A)
+    print("inverted")
     J_y = np.zeros([N, 3 * k + 1, k])  # jacobian of dims N x z x y
     for j in range(k):
         # for derivatives w.r.t y_j. A_inv x B^y_j
