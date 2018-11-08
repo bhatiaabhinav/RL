@@ -35,7 +35,7 @@ def _cplex_batch_CP(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: np.nda
             z_names_flat.append('z_{0}_{1}'.format(s, i))
 
     prob = cplex.Cplex()
-    max_threads = os.getenv('RL_CP_OPTNET_CPLEX_THREADS', 32)
+    max_threads = int(os.getenv('RL_CP_OPTNET_CPLEX_THREADS', 32))
     prob.parameters.threads.set(max_threads)
 
     # objective:
