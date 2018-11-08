@@ -6,6 +6,7 @@ from operator import mul
 
 import joblib
 import numpy as np
+import pyglet
 import tensorflow as tf
 import tensorflow.contrib as tc
 from keras.initializers import Orthogonal
@@ -14,6 +15,58 @@ from keras.models import Sequential
 from keras.optimizers import Adam
 
 from RL.common import logger
+
+
+class SimpleImageViewer(object):
+    def __init__(self, display=None, width=None, height=None, caption='SimpleImageViewer', resizable=True, vsync=False):
+        self.window = None
+        self.isopen = False
+        self.display = display
+        self.width = None
+        self.height = None
+        self.resizable = resizable
+        self.vsync = vsync
+        self.caption = caption
+
+    def imshow(self, arr):
+        if self.window is None:
+            height, width, _channels = arr.shape
+            if self.height is None:
+                self.height = height
+            if self.width is None:
+                self.width = width
+            self.window = pyglet.window.Window(
+                width=self.width, height=self.height, display=self.display, vsync=self.vsync, resizable=self.resizable, caption=self.caption)
+            self.width = width
+            self.height = height
+            self.isopen = True
+
+            @self.window.event
+            def on_resize(width, height):
+                self.width = width
+                self.height = height
+
+            @self.window.event
+            def on_close():
+                self.isopen = False
+
+        assert len(
+            arr.shape) == 3, "You passed in an image with the wrong number shape"
+        image = pyglet.image.ImageData(
+            arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+        self.window.clear()
+        self.window.switch_to()
+        self.window.dispatch_events()
+        image.blit(0, 0, width=self.window.width, height=self.window.height)
+        self.window.flip()
+
+    def close(self):
+        if self.isopen:
+            self.window.close()
+            self.isopen = False
+
+    def __del__(self):
+        self.close()
 
 
 def set_global_seeds(i):
@@ -42,6 +95,16 @@ def kdel(i, j):
     '''The Kronecker delta function. 1 when i=j. 0 otherwise'''
 
     return 1 if i == j else 0
+
+
+def py_func(func, inp, Tout, stateful=True, name=None, grad=None):
+    """Defines a custom py_func which takes also a grad op as argument"""
+    # Need to generate a unique name to avoid duplicates:
+    rnd_name = 'PyFuncGrad' + str(np.random.randint(0, 1E+8))
+    tf.RegisterGradient(rnd_name)(grad)  # see _MySquareGrad for grad example
+    g = tf.get_default_graph()
+    with g.gradient_override_map({"PyFunc": rnd_name}):
+        return tf.py_func(func, inp, Tout, stateful=stateful, name=name)
 
 
 def normalize(a, epsilon=1e-6):
@@ -196,7 +259,7 @@ def tf_hidden_layers(inputs, scope, size, use_ln=False, use_bn=False, training=F
     return inputs
 
 
-def tf_deep_net(inputs, inputs_shape, inputs_dtype, scope, hidden_size, init_scale=1.0, use_ln=False, use_bn=False, training=False, output_shape=None):
+def tf_deep_net(inputs, inputs_shape, inputs_dtype, scope, hidden_size, init_scale=1.0, use_ln=False, use_bn=False, training=False, output_shape=None, bias=0):
     conv_needed = len(inputs_shape) > 1
     with tf.variable_scope(scope):
         if conv_needed:
@@ -213,7 +276,7 @@ def tf_deep_net(inputs, inputs_shape, inputs_dtype, scope, hidden_size, init_sca
             # final_flat = tf.layers.dense(h, output_size, kernel_initializer=tf.random_uniform_initializer(
             #     minval=-init_scale, maxval=init_scale), name='output_flat')
             final_flat = tf.layers.dense(h, output_size, kernel_initializer=tf.orthogonal_initializer(
-                gain=init_scale), name='output_flat')
+                gain=init_scale), bias_initializer=tf.constant_initializer(bias), name='output_flat')
             final = tf.reshape(
                 final_flat, [-1] + list(output_shape), name='output')
         else:
