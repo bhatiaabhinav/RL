@@ -201,6 +201,11 @@ class MMDPActionWrapper(gym.Wrapper):
         logger.log("Wrapping with", str(type(self)))
         super().__init__(env)
         self.assume_feasible_action_input = assume_feasible_action_input
+        if self.assume_feasible_action_input:
+            logger.log("Assuming feasible action will be given to action wrapper")
+        else:
+            logger.log("Action wrapper will feasiblize given action using an LP")
+        logger.log("Action wrapper will round off the action")
         self.nresources = self.env.metadata['nresources']
         self._logged_cplex_problem_yet = False
 

@@ -1,7 +1,9 @@
+import os
+
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure, Axes  # noqa: F401
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Axes, Figure  # noqa: F401
 
 from RL.common.utils import SimpleImageViewer
 
@@ -21,7 +23,7 @@ def moving_average(arr, n=30):
 
 
 class PlotRenderer:
-    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn'):
+    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn', auto_save=False, save_path=None):
         if title is not None and concat_title_with_caption:
             window_caption += ': {0}'.format(title)
         self.viewer = SimpleImageViewer(
@@ -36,12 +38,16 @@ class PlotRenderer:
         self.canvas = FigureCanvas(self.fig)
         self.data = []
         self.smoothing = smoothing
+        self.auto_save = auto_save
+        self.save_path = save_path
 
     def plot(self, *args, data=None, **kwargs):
         self.curves = self.axes.plot(*args, data=data, **kwargs)
         for curve in self.curves:
             xs, ys = curve.get_data()
             self.data.append([list(xs), list(ys)])
+        if self.auto_save:
+            self.save()
 
     def update(self, list_data, autoscale=True):
         if not autoscale:
@@ -54,6 +60,8 @@ class PlotRenderer:
         if autoscale:
             self.axes.relim()
             self.axes.autoscale(enable=autoscale)
+        if self.auto_save:
+            self.save()
 
     def render(self):
         self.canvas.draw()
@@ -80,10 +88,22 @@ class PlotRenderer:
         if autoscale:
             self.axes.relim()
             self.axes.autoscale(enable=autoscale)
+        if self.auto_save:
+            self.save()
 
     def append_and_render(self, list_y, starting_x=0, autoscale=True):
         self.append(list_y, starting_x=starting_x, autoscale=autoscale)
         self.render()
+
+    def save(self, path=None):
+        if path is None:
+            path = self.save_path
+        if path is None:
+            raise FileNotFoundError('No save path given')
+        dirname = os.path.dirname(path)
+        if len(dirname) > 0 and not os.path.exists(dirname):
+            os.makedirs(dirname)
+        self.fig.savefig(path)
 
     def close(self):
         self.viewer.close()

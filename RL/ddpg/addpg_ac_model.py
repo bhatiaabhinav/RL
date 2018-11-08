@@ -304,6 +304,7 @@ class DDPG_Model_Main(DDPG_Model_Base):
                          advantage_learning=advantage_learning, use_layer_norm=use_layer_norm,
                          use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,
                          log_norm_obs_alloc=log_norm_obs_alloc, log_norm_action=log_norm_action, rms_norm_action=rms_norm_action)
+        logger.log("Setting up main network")
         with tf.variable_scope(name):
             self._setup_states_feed()
             self._setup_running_ob_stats()
@@ -524,6 +525,7 @@ class DDPG_Model_Target(DDPG_Model_Base):
                          init_scale=init_scale, advantage_learning=advantage_learning,
                          use_layer_norm=use_layer_norm, use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,
                          log_norm_obs_alloc=log_norm_obs_alloc, log_norm_action=log_norm_action, rms_norm_action=rms_norm_action)
+        logger.log("Setting up target network")
         self.main_network = main_network
         self.tau = tau
         with tf.variable_scope(name):
@@ -576,6 +578,7 @@ class DDPG_Model_With_Param_Noise(DDPG_Model_Base):
                          init_scale=init_scale, advantage_learning=advantage_learning,
                          use_layer_norm=use_layer_norm, use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,
                          log_norm_obs_alloc=log_norm_obs_alloc, log_norm_action=log_norm_action, rms_norm_action=rms_norm_action)
+        logger.log("Setting up param noise network")
         self.main_network = main_network
         self.target_divergence = target_divergence
         self._main_network_params = self.main_network._get_tf_variables()
@@ -691,6 +694,7 @@ class DDPG_Model_With_Param_Noise(DDPG_Model_Base):
 
 class Summaries:
     def __init__(self, session: tf.Session):
+        logger.log("Setting up summaries")
         self.session = session
         self.writer = tf.summary.FileWriter(
             logger.get_dir(), self.session.graph)
@@ -735,11 +739,12 @@ class Summaries:
 
 class DDPG_Model:
     def __init__(self, session: tf.Session, use_param_noise, sys_args_dict):
+        logger.log("Setting up DDPG Model")
         self.main = DDPG_Model_Main(session, "model_main", **sys_args_dict)
         self.target = DDPG_Model_Target(
             session, "model_target", self.main, **sys_args_dict)
         if use_param_noise:
-            print("creating noisy actor")
             self.noisy = DDPG_Model_With_Param_Noise(
                 session, "model_param_noise", self.main, **sys_args_dict)
         self.summaries = Summaries(session)
+        logger.log("DDPG model setup done")

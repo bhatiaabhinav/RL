@@ -57,7 +57,7 @@ def parse():
         '--render', help='whether or not to render the env. False by default', type=str2bool, default=False)
     parser.add_argument('--render_mode', default='human')
     parser.add_argument('--render_fps', type=float, default=None)
-    parser.add_argument('--render_graphs', type=str2bool, default=True)
+    parser.add_argument('--render_graphs', type=str2bool, default=False)
     parser.add_argument(
         '--no_training', help='whether to just play without training', type=str2bool, default=False)
     parser.add_argument('--mb_size', type=int, default=64)

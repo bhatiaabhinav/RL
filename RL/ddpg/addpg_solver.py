@@ -213,7 +213,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
          init_scale=1e-3, reward_scaling=1, Noise_type=OrnsteinUhlenbeckActionNoise, exploration_sigma=0.2, exploration_theta=1, exploit_every=10,
          gamma=0.99, double_Q_learning=False, advantage_learning=False, hard_update_target=False, tau=0.001, use_ga_optimization=False, render=False, render_graphs=False,
          render_mode='human', render_fps=60, log_every=100, save_every=50, load_every=1000000, save_path=None, load_path=None, is_mmdp=False,
-         softmax_actor=False, wolpertinger_critic_train=False, monitor=True, video_interval=50, **kwargs):
+         softmax_actor=False, cp_optnet=False, wolpertinger_critic_train=False, monitor=True, video_interval=50, **kwargs):
     set_global_seeds(seed)
     env = gym.make(env_id)  # type: gym.Env
     for W in wrappers:
@@ -253,26 +253,27 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         if wolpertinger_critic_train:
             logger.log("Wolpertinger mode")
         action_wrapper = MMDPActionWrapper(
-            env, assume_feasible_action_input=softmax_actor)
+            env, assume_feasible_action_input=softmax_actor or cp_optnet)
         logger.log(
-            'Constrained Softmax Layer Mode' if softmax_actor else 'Soft Constraints Mode')
+            'Constrained Softmax Layer Mode' if softmax_actor else ('CP-Optnet Mode' if cp_optnet else 'Soft Constraints Mode'))
     if learning:
         experience_buffer = ExperienceBuffer(
             length=replay_buffer_length, size_in_bytes=replay_memory_size_in_bytes)
         noise = None if use_param_noise else Noise_type(mu=np.zeros(
             env.action_space.shape), sigma=exploration_sigma, theta=exploration_theta)
 
-    logdir = os.path.basename(os.path.normpath(logger.get_dir()))
-    window_name = env_id + ":" + logdir
+    logdir_last_part = os.path.basename(os.path.normpath(logger.get_dir()))
+    window_name = env_id + ":" + logdir_last_part
     action_renderer = PlotRenderer(600, 600, 'Episode average action', xlabel='base_id',
-                                   ylabel='Action', window_caption=window_name, concat_title_with_caption=False)
+                                   ylabel='Action', window_caption=window_name, concat_title_with_caption=False, auto_save=True, save_path=os.path.join(logger.get_dir(), 'action.png'))
     action_renderer.plot(list(range(env.action_space.shape[0])), [
                          0] * env.action_space.shape[0])
     score_renderer = PlotRenderer(600, 600, 'Average Reward per Episode', xlabel='Episode',
-                                  ylabel='Reward', window_caption=window_name, concat_title_with_caption=False, smoothing=100)
+                                  ylabel='Reward', window_caption=window_name, concat_title_with_caption=False, smoothing=100, auto_save=True, save_path=os.path.join(logger.get_dir(), 'Reward.png'))
     score_renderer.plot([], [], 'b-', [], [], 'g--')
     Rs, exploit_Rs, exploit_blip_Rs, f = [], [], [], 0
     env.seed(learning_env_seed if learning else test_env_seed)
+
     for ep in range(learning_episodes if learning else test_episodes):
         obs, d, R, blip_R, ep_l, ep_sum_a = env.reset(), False, 0, 0, 0, 0
         exploit_mode = (ep % exploit_every == 0) or not learning
@@ -290,7 +291,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
                     ga_optimize_actor(model, experience_buffer.random_states(
                         mb_size), mutation_fn, exploration_sigma, train_steps=100)
             raw_action = get_action(model=model, obs=obs, env=env, action_noise=noise,
-                                    use_param_noise=use_param_noise, exploit_mode=exploit_mode, normalize_action=softmax_actor, log=should_log, f=f)
+                                    use_param_noise=use_param_noise, exploit_mode=exploit_mode, normalize_action=softmax_actor or cp_optnet, log=should_log, f=f)
             if is_mmdp:
                 action, wrap_effect = action_wrapper.wrap(raw_action)
                 if should_log:
@@ -327,9 +328,11 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         logger.dump_tabular()
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
         logger.log('Average action: {0}'.format(ep_av_a))
+        score_renderer.append([exploit_Rs[-1], Rs[-1]])
+        action_renderer.update([[list(range(25)), ep_av_a]])
         if render_graphs:
-            score_renderer.append_and_render([exploit_Rs[-1], Rs[-1]])
-            action_renderer.update_and_render([[list(range(25)), ep_av_a]])
+            score_renderer.render()
+            action_renderer.render()
         model.summaries.write_summaries(
             {'R': R, 'R_exploit': exploit_Rs[-1], 'blip_R_exploit': exploit_blip_Rs[-1], 'ep_length': ep_l, 'ep_av_action': ep_av_a}, ep)
         if save_path and ep % save_every == 0:
