@@ -76,6 +76,7 @@ def parse():
     parser.add_argument('--is_mmdp', type=str2bool, default=False)
     parser.add_argument('--softmax_actor', type=str2bool, default=False)
     parser.add_argument('--soft_constraints', type=str2bool, default=False)
+    parser.add_argument('--cp_optnet', type=str2bool, default=False)
     parser.add_argument('--soft_constraints_lambda', type=float, default=10000)
     parser.add_argument('--log_norm_obs_alloc', type=str2bool, default=False)
     parser.add_argument('--log_norm_action', type=str2bool, default=False)

@@ -41,6 +41,14 @@ def normalize_constraints(constraints, nresources=None):
             normalize_constraints(child_constraints, nresources)
 
 
+def depth_of_constraints(constraints):
+    children = constraints.get('children', [])
+    if len(children) == 0:
+        return 0
+    else:
+        return 1 + max(depth_of_constraints(child) for child in children)
+
+
 def count_leaf_nodes_in_constraints(constraints):
     if 'children' not in constraints or len(constraints['children']) == 0:
         return 1

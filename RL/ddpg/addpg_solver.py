@@ -30,6 +30,7 @@ from RL.reco_rl.wrappers import (BSStoMMDPWrapper, ERStoMMDPWrapper,
                                  MMDPActionSpaceNormalizerWrapper,
                                  MMDPActionWrapper, MMDPObsNormalizeWrapper,
                                  MMDPObsStackWrapper)
+from RL.common.plot_renderer import PlotRenderer
 
 
 def get_action(model: DDPG_Model, obs, env: gym.Env, action_noise, use_param_noise, exploit_mode, normalize_action, log, f):
@@ -261,6 +262,8 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         noise = None if use_param_noise else Noise_type(mu=np.zeros(
             env.action_space.shape), sigma=exploration_sigma, theta=exploration_theta)
 
+    action_renderer = PlotRenderer(600, 600, 'Episode average action', xlabel='base_id', ylabel='alloc', window_caption=os.path.basename(os.path.normpath(logger.get_dir())))
+    action_renderer.plot(list(range(25)), [0] * 25)
     Rs, exploit_Rs, exploit_blip_Rs, f = [], [], [], 0
     env.seed(learning_env_seed if learning else test_env_seed)
     for ep in range(learning_episodes if learning else test_episodes):
@@ -316,6 +319,8 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
             Rs[-100:]), 'Exploit Average Reward': np.average(exploit_Rs[-100:]), 'Exploit Average Blip Reward': np.average(exploit_blip_Rs[-100:])})
         logger.dump_tabular()
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
+        if exploit_mode:
+            action_renderer.update_and_render([[list(range(25)), ep_av_a]])
         logger.log('Average action: {0}'.format(ep_av_a))
         model.summaries.write_summaries(
             {'R': R, 'R_exploit': exploit_Rs[-1], 'blip_R_exploit': exploit_blip_Rs[-1], 'ep_length': ep_l, 'ep_av_action': ep_av_a}, ep)

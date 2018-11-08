@@ -1,13 +1,14 @@
 \documentclass[11 pt]{article}
 \usepackage{amsmath,amsfonts}
+\usepackage{bm}
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{xcolor}
 \usepackage{pagecolor}
 
 \definecolor{bgcolor}{RGB}{30,30,30}
 \definecolor{fgcolor}{RGB}{225,225,225}
-\pagecolor{bgcolor}
-\color{fgcolor}
+% \pagecolor{bgcolor}
+% \color{fgcolor}
 
 \begin{document}
 
@@ -44,7 +45,7 @@ The objective can be rewritten as:
 \[f = \sum_i^k z_i^2 - \sum_i^k 2 y_i z_i + \sum_i^k y_i^2\]
 The last term is a constant and is not really a part of the QP. Whether we include it or not, either way, it does not affect the KKT conditions.
 
-If we want to write the objective function in form $\frac{1}{2}z^T Q^T z + c^Tz$, then $Q$ would be $2I$ and $\vec{c}$ would be $-2\vec{y}$.
+If we want to write the objective function in form $\frac{1}{2}z^T Q z + c^Tz$, then $Q$ would be $2I$ and $\vec{c}$ would be $-2\vec{y}$.
 
 \section{The KKT Conditions}
 
@@ -111,7 +112,7 @@ The partial differential equations w.r.t $C$ are:
 The equations can be solved independently per input $y_j$ and $C$.
 
 
-\section{Solving system of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}}
+\section{Solving system of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}} \label{section_solving_eqns}
 
 For equations \ref{eqns_wrt_y_j}, the variables are $\frac{\partial}{\partial y_j}$ of $\alpha_i,\beta_i,\lambda,z_i$. So there are $n=3k + 1$ variables and that many equations.
 Trying to write equations \ref{eqns_wrt_y_j} in matrix form:
@@ -150,15 +151,15 @@ Basically,
 \begin{equation} \label{eqn_A_yj}
     A_{rc}^{y_j} = \begin{cases}
         \begin{aligned}
-            1 &\quad    r=1,c=3m+1 & m=1,2,...,k \\
-            1 &\quad    r=3m-1,c=1 & m=1,2,...,k \\
-            1 &\quad    r=3m-1,c=r & m=1,2,...,k \\
-            -1 &\quad   r=3m-1,c=r+1 & m=1,2,...,k \\
-            2 &\quad    r=3m-1,c=r+2 & m=1,2,...,k \\
-            z_m-\hat{C_m} &\quad    r=3m,c=r-1 & m=1,2,...,k \\
-            \alpha_m &\quad r=3m,c=r+1 & m=1,2,...,k \\
-            -z_m+\check{C_m} &\quad  r=3m+1,c=r-1 & m=1,2,...,k \\
-            -\beta_m &\quad r=3m+1,c=r & m=1,2,...,k \\
+            1 &\quad    r=1,c=3m+1 & m=1..k \\
+            1 &\quad    r=3m-1,c=1 & m=1..k \\
+            1 &\quad    r=3m-1,c=r & m=1..k \\
+            -1 &\quad   r=3m-1,c=r+1 & m=1..k \\
+            2 &\quad    r=3m-1,c=r+2 & m=1..k \\
+            z_m-\hat{C_m} &\quad    r=3m,c=r-1 & m=1..k \\
+            \alpha_m &\quad r=3m,c=r+1 & m=1..k \\
+            -z_m+\check{C_m} &\quad  r=3m+1,c=r-1 & m=1..k \\
+            -\beta_m &\quad r=3m+1,c=r & m=1..k \\
             0 &\quad \text{otherwise}
         \end{aligned}
     \end{cases}
@@ -167,7 +168,7 @@ and
 \begin{equation} \label{eqn_B_yj}
     B_r^{y_j} = \begin{cases}
         \begin{aligned}
-            2 \delta_{mj} &\quad r=3m-1 & m=1,2,...,k \\
+            2 \delta_{mj} &\quad r=3m-1 & m=1..k \\
             0 &\quad \text{otherwise}
         \end{aligned}
     \end{cases}
@@ -203,21 +204,112 @@ The overall Jacobian would be simply the horizontal contatenation:
 \end{equation}
 
 
-\section{The overall picture}
+\section{Issues}
 
-From $J$, we can extract the rows corresponding to $z_i$ and transpose it and thus write $\nabla_{\vec{y},C}{\vec{z}}$, which is a $(k+1) \times k$ matrix.
+There can be two main issues:
+\begin{enumerate}
+    \item Zero gradients \\
+            This can happen when for some $i$, $z_i = \hat{C_i}$ or $z_i = \check{C_i}$, irrespective of the exact value of $\vec{y}$. In that case, $\frac{\partial z_i}{\partial y_j} = 0, \forall j$, which means that irrespective of the loss function, $z_i$, would not change at this $y$. But this is not problem in itself, since $y$ can continue to change through $\frac{\partial z_{\ne i}}{\partial y_j}$, and hopefully for some other value of $y$, $z_i$ will start changing. But still, the whole thing can get stuck in a local minimum, if the gradient of the loss function becomes zero w.r.t all components of y. \\
+            In practice, it is not getting stuck in any local minimum, but this is really an issue of a landscape in which one has to go \textit{around} lots of hills, making the convergence slow. A hack is to make $\vec{y}$ have a range between $\vec{\check{C}}$ and $\vec{\hat{C}}$ by say preprocessing it with a scaled $tanh$ layer. This $tanh$ layer can cause gradient vanishing gradients. A hack is to scale it to between $\vec{\check{C}} - \epsilon$ and $\vec{\hat{C}} + \epsilon$. This way the gradients due to $tanh$ become better; and although the original issue can appear again, it becomes way less severe (there are no long distances to travel around hills). 
+    \item Non differentiable points \\
+            Happens when matrix $A$ has a zero row. This is possible if both $z_i - \hat{C_i} = \alpha_i = 0$ for some $i$. This would happen if the $y_i \le \hat{C_i}$ (making $\alpha=0$) and gets projected to the boundary ($z_i = \hat{C_i}$). An example would be that $y$ was a feasible point and atleast one of the components was \textit{exactly on} the boundary. In that case, $z=y$, and for those boundary components, $z_i - \hat{C_i} = \alpha_i = 0$.
+\end{enumerate}
 
-Thus we can get gradient of output $\vec{z}$ w.r.t network parameters $\theta \in \mathbb{R}^p$ using the chain rule as:
 
-\[(\nabla_{\theta}\vec{z})_{p \times k} = (\nabla_{\theta}(\vec{y},c))_{p \times (k+1)} (\nabla_{(\vec{y},C)}\vec{z})_{(k+1) \times k}\]
+\section{Batched Problem}
+
+Now we want to solve the problem for the entire batch simultaneously. Let the batch size be $N$.
+
+For sample $s$, given node $g_s$ (which has already been allocated $C_s$ resources) from the constraints tree, we want to allocate resources to it's $k$ children such that:
+\[\sum_i^k z_{si} = C_s \]
+\[\forall i \in {1,...,k} : 0 \le \check{C_{si}} \le z_{si} \le \hat{C_{si}} \le 1\]
+
+i.e. for all $s \in {1,...,N}$, we are given $C_s$ and a vector $\vec{y_s} \in [0, 1]^k$. We want to project this vector to the nearest (by $L_2$ norm) feasible solution $\vec{z_s}$.
+
+
+\section{Batched QP}
+
+The objective of the combined QP should be just the sum of objectives of the individual QPs.
+
+\begin{equation} \label{batch_qp}
+    \begin{aligned}
+        \underset{\bm{z}}{\min} \sum_s^N \sum_i^k (z_{si} - y_{si})^2 \quad &\text{subject to} \\
+        \forall s=1..N: & \sum_i^k z_{si} - C_s &= 0                   \qquad \lambda_s\\
+        \forall s=1..N: \forall i=1..k : & \ z_{si} - \hat{C_{si}} &\le 0      \qquad \alpha_{si}\\
+        \forall s=1..N: \forall i=1..k : & \ -z_{si} + \check{C_{si}} &\le 0      \qquad \beta_{si}\\
+    \end{aligned}
+\end{equation}
+Here $\lambda_s,\alpha_{si}, \beta_{si}$ are the corresponding Lagrange multipliers.
+
+Since the objective function is \textit{strictly} convex and the constraints are convex too, there exists a unique solution to this QP.
+
+The objective can be rewritten as:
+\[f = \sum_s^N \sum_i^k z_{si}^2 - \sum_s^N \sum_i^k 2 y_{si} z_{si} + \sum_s^N \sum_i^k y_{si}^2\]
+The last term is a constant and is not really a part of the QP. Whether we include it or not, either way, it does not affect the KKT conditions.
+
+For inputs to programs like cplex, if we want to write the objective function in form $\frac{1}{2}z^T Q z + c^Tz$, (here $z$ is a vector of $Nk$ dimensions, i.e. flattened version of $\bm{z}$) then $Q$ would be $2I$ and $\vec{c}$ would be $-2\vec{y}$ (here $\vec{y}$ is flattened version of $\bm{y}$)
+
+
+\section{Batched QP KKT Conditions}
+
+The Langragian is:
+\begin{equation}
+    % L(\vec{z},\vec{\alpha},\vec{\beta},\lambda) = \sum_i^k (z_i-y_i)^2 + \lambda (\sum_i^k z_i - C) + \sum_i^k \alpha_i(z_i - \hat{C_i}) + \sum_i^k \beta_i(\check{C_i} - z_i)
+    L(\bm{z},\bm{\alpha},\bm{\beta},\vec{\lambda}) = \sum_s^N \sum_i^k (z_{si}-y_{si})^2 + \sum_s^N \lambda_s (\sum_i^k z_{si} - C_s) + \sum_s^N \sum_i^k \alpha_{si}(z_{si} - \hat{C_{si}}) + \sum_s^N \sum_i^k \beta_{si}(\check{C_{si}} - z_{si})
+\end{equation}
+
+The KKT conditions (conditions satisfied by the solution $\bm{z}^*, \bm{\alpha}^*, \bm{\beta}^* \vec{\lambda}^*$ of the QP \ref{batch_qp}) is given by
+\begin{align*}
+    &\nabla_{\bm{z},\vec{\lambda}} L & = \bm{0} \\
+    \forall s=1..N: \forall i=1..k: \quad &\alpha_{si}(z_{si} - \hat{C_{si}}) & = 0 \\
+    \forall s=1..N: \forall i=1..k: \quad &\beta_{si}(-z_{si} + \check{C_{si}}) & = 0 \\
+\end{align*}
+which expand to:
+\begin{equation}\label{eqns_batch_kkt}
+    \begin{cases}
+        \begin{aligned}
+            \forall s=1..N &: \sum_i^k z_{si} - C_s & = 0 \\
+            \forall s=1..N : \forall i=1..k \quad &: 2(z_{si}-y_{si}) + \lambda_s + \alpha_{si} & = 0 \\
+            \forall s=1..N : \forall i=1..k \quad &: \alpha_{si}(z_{si} - \hat{C_{si}}) & = 0 \\
+            \forall s=1..N : \forall i=1..k \quad &: \beta_{si}(-z_{si} + \check{C_{si}}) & = 0 \\
+        \end{aligned}
+    \end{cases}
+\end{equation}
+i.e. $N(3k+1)$ equations.
+
+
+\section{Differentiating the Batch KKT conditions}
+
+We can differentiate both sides of each equation in set of equations \ref{eqns_batch_kkt} w.r.t to inputs $\bm{y}$ and $\vec{C}$.
+
+\textbf{We already know that the Jacobian of $\vec{z_s}$ w.r.t $\vec{y_t}$ will be zero when $t \ne s$ , since samples do not affect each other during the forward pass. Thus we need to compute individual Jacobians only.}
+
+Let the subscript $s$ be implicit in all the text from this point. i.e. we are talking about sample $s$.
+
+The partial differential equations are exactly same as \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}, which can be solved independently per input $y_j$ and $C$.
+
+\section{Solving system of equations \ref{eqns_wrt_y_j} and \ref{eqns_wrt_C}}
+
+Exact same procedure as in section \ref{section_solving_eqns} can be followed to calculate the Jacobian per sample $s=1..N$.
+
+
+\section{Closed form solution}
+TODO
 
 
 \section{Computation requirements}
-Let $N$ be the size of the minibatch.
 
 Computation needed to compute $A^{-1}$ will be of order $k^3$. And luckily it need not be computed for all $y_j$ and $C$ (by \ref{eqn_all_A_same}). $A^{-1}B$ ($\propto k^2$) will be done $k$ times, i.e. $k^3$.
 Thus just $\mathcal{O}(k^3)$ per backward pass.
 
-For the entire minibatch, $\mathcal{O}(N k^3)$. Plus all the matrix operations can be parallelized on a GPU and $\nabla_{\theta}\vec{z}$ can be computed parallely for each minibatch item. Then $\nabla_{\theta}\vec{z}$ can be averaged (parallely per cell) across the minibatch in $\mathcal{O}(N)$ time.
+For the entire minibatch, $\mathcal{O}(N k^3)$. Computation per minibatch can be done parallely. Plus all the matrix operations can be parallelized on a GPU. So the complexity can be dialed back to less than $\mathcal{O}(k^3)$.
+
+
+\section{Implementation}
+
+We can define new ops in tensorflow. for backward pass, the matrix calculations can be done using the tensorflow function, i.e. it can be done on a GPU.
+
+
+
 
 \end{document}
