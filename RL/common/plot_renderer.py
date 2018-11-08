@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure, Axes  # noqa: F401
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -5,28 +6,51 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from RL.common.utils import SimpleImageViewer
 
 
+def moving_average(arr, n=30):
+    if n is not None:
+        if len(arr) == 0:
+            return np.array([])
+        cumsum = np.cumsum(np.insert(arr, 0, np.zeros(n)))
+        if len(arr) < n:
+            div = np.arange(1, len(arr) + 1)
+        else:
+            div = np.insert(n * np.ones(len(arr) - n + 1), 0, np.arange(1, n))
+        return (cumsum[n:] - cumsum[:-n]) / div
+    else:
+        return arr
+
+
 class PlotRenderer:
-    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot'):
-        if title is not None:
+    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn'):
+        if title is not None and concat_title_with_caption:
             window_caption += ': {0}'.format(title)
         self.viewer = SimpleImageViewer(
             width=window_width, height=window_height, caption=window_caption)
-        self.fig = Figure()
-        self.axes = self.fig.gca()  # type: Axes
+        with plt.style.context(style):
+            self.fig = Figure()
+            self.axes = self.fig.gca()  # type: Axes
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
         self.axes.set_title(title)
         self.curves = None
         self.canvas = FigureCanvas(self.fig)
+        self.data = []
+        self.smoothing = smoothing
 
     def plot(self, *args, data=None, **kwargs):
         self.curves = self.axes.plot(*args, data=data, **kwargs)
+        for curve in self.curves:
+            xs, ys = curve.get_data()
+            self.data.append([list(xs), list(ys)])
 
     def update(self, list_data, autoscale=True):
         if not autoscale:
             self.axes.autoscale(enable=False)
-        for curve, data in zip(self.curves, list_data):
-            curve.set_data(data[0], data[1])
+        for curve, data, new_data in zip(self.curves, self.data, list_data):
+            xs, ys = new_data
+            data[0], data[1] = list(xs), list(ys)
+            xs, ys = xs, moving_average(ys, self.smoothing)
+            curve.set_data(xs, ys)
         if autoscale:
             self.axes.relim()
             self.axes.autoscale(enable=autoscale)
@@ -40,6 +64,25 @@ class PlotRenderer:
 
     def update_and_render(self, list_data, autoscale=True):
         self.update(list_data, autoscale=autoscale)
+        self.render()
+
+    def append(self, list_y, starting_x=0, autoscale=True):
+        for curve, data, y in zip(self.curves, self.data, list_y):
+            xs, ys = data
+            if len(xs) == 0:
+                xs.append(starting_x)
+            else:
+                xs.append(xs[-1] + 1)
+            ys.append(y)
+            data[0], data[1] = xs, ys
+            xs, ys = xs, moving_average(ys, self.smoothing)
+            curve.set_data(xs, ys)
+        if autoscale:
+            self.axes.relim()
+            self.axes.autoscale(enable=autoscale)
+
+    def append_and_render(self, list_y, starting_x=0, autoscale=True):
+        self.append(list_y, starting_x=starting_x, autoscale=autoscale)
         self.render()
 
     def close(self):

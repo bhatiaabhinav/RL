@@ -49,6 +49,8 @@ color_map = {
     'cddpg_logac_wolpert': 'steelblue',
     'cddpg_logboth': 'mediumpurple',
     'cddpg_logboth_wolpert': 'darkorchid',
+    'optnet64_rmsac_wolpert': 'mediumpurple',
+    'optnet_rmsac_wolpert': 'darkorchid',
     'static': 'silver',
     'uniform': 'silver',
     'no_repositioning': 'silver',
@@ -59,7 +61,9 @@ color_map = {
 
 line_style_map = {
     'sddpg_rmsac_wolpert': '--',
-    'cddpg_rmsac_wolpert': '-',
+    'cddpg_rmsac_wolpert': '-.',
+    'optnet64_rmsac_wolpert': '-',
+    'optnet_rmsac_wolpert': '-',
     'greedy': ':',
     'vehicle_repositioning': ':',
     'rtrailer_cap5': ':'
@@ -84,6 +88,8 @@ legend_sort_order = {
     'cddpg_logac_wolpert': 110,
     'cddpg_logboth': 120,
     'cddpg_logboth_wolpert': 130,
+    'optnet64_rmsac_wolpert': 150,
+    'optnet_rmsac_wolpert': 155,
     'static': 0,
     'uniform': 0,
     'no_repositioning': 0,

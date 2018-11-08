@@ -211,7 +211,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
          test_env_seed=42, learning_episodes=40000, test_episodes=100, exploration_episodes=10, train_every=1,
          mb_size=64, use_safe_noise=False, replay_buffer_length=1e6, replay_memory_size_in_bytes=None, use_param_noise=False,
          init_scale=1e-3, reward_scaling=1, Noise_type=OrnsteinUhlenbeckActionNoise, exploration_sigma=0.2, exploration_theta=1, exploit_every=10,
-         gamma=0.99, double_Q_learning=False, advantage_learning=False, hard_update_target=False, tau=0.001, use_ga_optimization=False, render=False,
+         gamma=0.99, double_Q_learning=False, advantage_learning=False, hard_update_target=False, tau=0.001, use_ga_optimization=False, render=False, render_graphs=False,
          render_mode='human', render_fps=60, log_every=100, save_every=50, load_every=1000000, save_path=None, load_path=None, is_mmdp=False,
          softmax_actor=False, wolpertinger_critic_train=False, monitor=True, video_interval=50, **kwargs):
     set_global_seeds(seed)
@@ -262,8 +262,15 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         noise = None if use_param_noise else Noise_type(mu=np.zeros(
             env.action_space.shape), sigma=exploration_sigma, theta=exploration_theta)
 
-    action_renderer = PlotRenderer(600, 600, 'Episode average action', xlabel='base_id', ylabel='alloc', window_caption=os.path.basename(os.path.normpath(logger.get_dir())))
-    action_renderer.plot(list(range(25)), [0] * 25)
+    logdir = os.path.basename(os.path.normpath(logger.get_dir()))
+    window_name = env_id + ":" + logdir
+    action_renderer = PlotRenderer(600, 600, 'Episode average action', xlabel='base_id',
+                                   ylabel='Action', window_caption=window_name, concat_title_with_caption=False)
+    action_renderer.plot(list(range(env.action_space.shape[0])), [
+                         0] * env.action_space.shape[0])
+    score_renderer = PlotRenderer(600, 600, 'Average Reward per Episode', xlabel='Episode',
+                                  ylabel='Reward', window_caption=window_name, concat_title_with_caption=False, smoothing=100)
+    score_renderer.plot([], [], 'b-', [], [], 'g--')
     Rs, exploit_Rs, exploit_blip_Rs, f = [], [], [], 0
     env.seed(learning_env_seed if learning else test_env_seed)
     for ep in range(learning_episodes if learning else test_episodes):
@@ -319,9 +326,10 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
             Rs[-100:]), 'Exploit Average Reward': np.average(exploit_Rs[-100:]), 'Exploit Average Blip Reward': np.average(exploit_blip_Rs[-100:])})
         logger.dump_tabular()
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
-        if exploit_mode:
-            action_renderer.update_and_render([[list(range(25)), ep_av_a]])
         logger.log('Average action: {0}'.format(ep_av_a))
+        if render_graphs:
+            score_renderer.append_and_render([exploit_Rs[-1], Rs[-1]])
+            action_renderer.update_and_render([[list(range(25)), ep_av_a]])
         model.summaries.write_summaries(
             {'R': R, 'R_exploit': exploit_Rs[-1], 'blip_R_exploit': exploit_blip_Rs[-1], 'ep_length': ep_l, 'ep_av_action': ep_av_a}, ep)
         if save_path and ep % save_every == 0:
