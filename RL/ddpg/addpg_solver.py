@@ -329,7 +329,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
         logger.log('Average action: {0}'.format(ep_av_a))
         score_renderer.append([exploit_Rs[-1], Rs[-1]])
-        action_renderer.update([[list(range(25)), ep_av_a]])
+        action_renderer.update([[list(range(env.action_space.shape[0])), ep_av_a]])
         if render_graphs:
             score_renderer.render()
             action_renderer.render()
