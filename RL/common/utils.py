@@ -22,43 +22,50 @@ class SimpleImageViewer(object):
         self.window = None
         self.isopen = False
         self.display = display
-        self.width = None
-        self.height = None
+        self.width = width
+        self.height = height
         self.resizable = resizable
         self.vsync = vsync
         self.caption = caption
+        self._failed = False
 
     def imshow(self, arr):
-        if self.window is None:
+        if self.window is None and not self._failed:
             height, width, _channels = arr.shape
             if self.height is None:
                 self.height = height
             if self.width is None:
                 self.width = width
-            self.window = pyglet.window.Window(
-                width=self.width, height=self.height, display=self.display, vsync=self.vsync, resizable=self.resizable, caption=self.caption)
-            self.width = width
-            self.height = height
-            self.isopen = True
+            try:
+                self.window = pyglet.window.Window(
+                    width=self.width, height=self.height, display=self.display, vsync=self.vsync, resizable=self.resizable, caption=self.caption)
+            except Exception as e:
+                self.window = None
+                self._failed = True
+                logger.warn("Could not create window: {0}".format(e))
 
-            @self.window.event
-            def on_resize(width, height):
-                self.width = width
-                self.height = height
+            if not self._failed:
+                self.isopen = True
 
-            @self.window.event
-            def on_close():
-                self.isopen = False
+                @self.window.event
+                def on_resize(width, height):
+                    self.width = width
+                    self.height = height
 
-        assert len(
-            arr.shape) == 3, "You passed in an image with the wrong number shape"
-        image = pyglet.image.ImageData(
-            arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
-        self.window.clear()
-        self.window.switch_to()
-        self.window.dispatch_events()
-        image.blit(0, 0, width=self.window.width, height=self.window.height)
-        self.window.flip()
+                @self.window.event
+                def on_close():
+                    self.isopen = False
+
+        if not self._failed:
+            assert len(
+                arr.shape) == 3, "You passed in an image with the wrong number shape"
+            image = pyglet.image.ImageData(
+                arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+            self.window.clear()
+            self.window.switch_to()
+            self.window.dispatch_events()
+            image.blit(0, 0, width=self.window.width, height=self.window.height)
+            self.window.flip()
 
     def close(self):
         if self.isopen:
