@@ -215,8 +215,6 @@ def tf_cplex_batch_CP_gradients(op, grads_wrt_z):
     if len(c_shape) == 0:
         grads_wrt_c = grads_wrt_c[0]
     grads_wrt_y = tf.cast(grads_wrt_y, tf.float32)
-    max_grad = tf.reduce_max(tf.abs(grads_wrt_y))
-    grads_wrt_y = grads_wrt_y / (max_grad + 1e-4)
     grads_wrt_c = tf.cast(grads_wrt_c, tf.float32)
     grads_wrt_cmin = tf.constant(0, dtype=tf.float32, shape=cmin_shape)
     grads_wrt_cmax = tf.constant(0, dtype=tf.float32, shape=cmax_shape)
@@ -295,9 +293,8 @@ def point_attraction_training_test(test_input, c, cmin, cmax, k):
     tf_z = tf_cplex_batch_CP(tf_y, c, cmin, cmax, k, name='z')
     tf_target = tf.constant(np.array([z_target]), dtype=tf.float32)
     _loss = tf.reduce_mean(tf.square(tf_z - tf_target))
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
     _grads = tf.gradients(_loss, [tf_y])
-    # _grads = [g / (tf.reduce_max(tf.abs(g)) + 1e-4) for g in _grads]
     sgd_step = optimizer.apply_gradients(zip(_grads, [tf_y]))
     grads_max, grads_min, grads_avg = [], [], []
     loss_data = []
