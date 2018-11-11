@@ -95,6 +95,10 @@ class PlotRenderer:
         self.append(list_y, starting_x=starting_x, autoscale=autoscale)
         self.render()
 
+    def clear(self):
+        list_data = [[[], []] for curve in self.curves]
+        self.update(list_data)
+
     def save(self, path=None):
         if path is None:
             path = self.save_path
