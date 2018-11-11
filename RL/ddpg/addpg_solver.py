@@ -324,7 +324,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
             exploit_Rs.append(R)
             exploit_blip_Rs.append(blip_R)
         logger.logkvs({'Episode': ep, 'Reward': R, 'Exploited': exploit_mode, 'Blip_Reward': blip_R, 'Length': ep_l, 'Average Reward': np.average(
-            Rs[-100:]), 'Exploit Average Reward': np.average(exploit_Rs[-100:]), 'Exploit Average Blip Reward': np.average(exploit_blip_Rs[-100:])})
+            Rs[-100:]), 'Exploit Average Reward': np.average(exploit_Rs[int(-100 / exploit_every):]), 'Exploit Average Blip Reward': np.average(exploit_blip_Rs[-100:])})
         logger.dump_tabular()
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
         logger.log('Average action: {0}'.format(ep_av_a))
