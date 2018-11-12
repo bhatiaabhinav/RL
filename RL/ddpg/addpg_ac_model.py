@@ -185,8 +185,8 @@ class DDPG_Model_Base:
                 cmax = np.array([child['max']
                                  for child in self.constraints['children']])
                 if self.soft_constraints:
-                    a = tf.nn.tanh(a, 'tanh')
-                    tf_scale(a, -1, 1, cmin, cmax, "scale_to_cmin_cmax")
+                    # a = tf.nn.tanh(a, 'tanh')
+                    # tf_scale(a, -1, 1, cmin, cmax, "scale_to_cmin_cmax")
                     self._penalizable_a = a
                     logger.log('Actor output using optnet')
                     a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin), scale_inputs=False)

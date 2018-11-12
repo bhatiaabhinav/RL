@@ -6,7 +6,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--nstack=3 \
 	--nn_size="[400,300]" \
 	--soft_constraints=True \
-	--soft_constraints_lambda=100000 \
+	--soft_constraints_lambda=10000 \
 	--softmax_actor=False \
 	--cp_optnet=True \
 	--wolpertinger_critic_train=True \
