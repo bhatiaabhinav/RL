@@ -38,6 +38,9 @@ def _cplex_batch_CP(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: np.nda
     if os.getenv('RL_CP_OPTNET_CPLEX_THREADS', None) is not None:
         max_threads = int(os.getenv('RL_CP_OPTNET_CPLEX_THREADS'))
         prob.parameters.threads.set(max_threads)
+    if os.getenv('RL_CP_OPTNET_CPLEX_QPMETHOD', None) is not None:
+        alg = int(os.getenv('RL_CP_OPTNET_CPLEX_QPMETHOD'))
+        prob.parameters.qpmethod.set(alg)
 
     # objective:
     y_flat = y.flatten()
