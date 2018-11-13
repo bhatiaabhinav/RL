@@ -162,6 +162,7 @@ class DDPG_Model_Base:
                 self.constraints) - 1] if self.softmax_actor else self.ac_shape
             a = tf_deep_net(states, self.ob_shape, self.ob_dtype, 'a_network', self.nn_size, use_ln=self.use_layer_norm and self.use_norm_actor,
                             use_bn=self.use_batch_norm and self.use_norm_actor, training=self._is_training_a, output_shape=output_shape)
+            self._penalizable_a = None
             if self.softmax_actor:
                 logger.log(
                     'Actor output using nested contrained softmax layer')
@@ -170,12 +171,12 @@ class DDPG_Model_Base:
                     a, self.constraints, 'nested_constrained_softmax', z_tree=z_tree)
                 with open(os.path.join(logger.get_dir(), 'z_tree.txt'), 'w') as file:
                     file.write(str(z_tree))
-            elif self.soft_constraints:
+            elif self.soft_constraints and not self.cp_optnet:
                 logger.log('Actor output in range 0 to 1 using scaled tanh')
                 a = tf.minimum(tf.maximum(
                     (tf.nn.tanh(a, 'tanh') + 1) / 2, 0), 1)
+                self._penalizable_a = a
             elif self.cp_optnet:
-                logger.log('Actor output using optnet')
                 assert depth_of_constraints(
                     self.constraints) == 1, "Right now only 1 level constraints are supported in optnet"
                 c = self.constraints['equals']
@@ -183,7 +184,15 @@ class DDPG_Model_Base:
                                  for child in self.constraints['children']])
                 cmax = np.array([child['max']
                                  for child in self.constraints['children']])
-                a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin))
+                if self.soft_constraints:
+                    # a = tf.nn.tanh(a, 'tanh')
+                    # tf_scale(a, -1, 1, cmin, cmax, "scale_to_cmin_cmax")
+                    self._penalizable_a = a
+                    logger.log('Actor output using optnet')
+                    a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin), scale_inputs=False)
+                else:
+                    logger.log('Actor output using optnet')
+                    a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin), scale_inputs=True)
             else:
                 logger.log('Actor output in range -1 to 1 using tanh')
                 a = tf.nn.tanh(a, 'tanh')
@@ -333,8 +342,9 @@ class DDPG_Model_Main(DDPG_Model_Base):
             self._infeasibility = tf.constant(0.0)
             if self.constraints is not None:
                 with tf.name_scope('infeasibility'):
+                    a_to_penalize = self._a if self._penalizable_a is None else self._penalizable_a
                     sum_violation, min_violation, max_violation = tf_infeasibility(
-                        self._a, self.constraints, 'infeasibility_{0}'.format(self.constraints['name']))
+                        a_to_penalize, self.constraints, 'infeasibility_{0}'.format(self.constraints['name']))
                     self._infeasibility = tf.reduce_mean(
                         sum_violation + min_violation + max_violation)
             if self.soft_constraints:

@@ -23,7 +23,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--mb_size=128 \
 	--init_scale=3e-3 \
 	--lr=1e-3 \
-	--a_lr=1e-3 \
+	--a_lr=1e-4 \
 	--l2_reg=1e-2 \
 	--train_every=2 \
 	--exploit_every=4 \

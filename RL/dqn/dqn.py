@@ -1,4 +1,11 @@
 """dqn.py: Implementation of Deepmind's DQN algorithm using Tensorflow and OpenAI gym.
+extras:
+    Double DQN
+    Dueling DQN
+    Observation Normalization
+    DDPG style soft updated target network
+    clipping, regularization etc.
+    RND prediction based (episodic) intrinsic reward (single value head) - a naive implementation
 
 original paper: https://www.nature.com/articles/nature14236
 
@@ -18,7 +25,7 @@ What has not been implemented yet:
 __author__ = "Abhinav Bhatia"
 __email__ = "bhatiaabhinav93@gmail.com"
 __license__ = "gpl"
-__version__ = "0.9.0"
+__version__ = "1.0.0"
 
 import os
 import random
@@ -32,6 +39,7 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 
 from RL.common import logger
+from RL.common.utils import RunningStats
 
 
 class Experience:
@@ -152,11 +160,16 @@ class Context:
     ddpg_target_network_update_mode = True
     experiment_name = 'dqn'
     double_dqn = False
-    dueling_dqn = True
+    dueling_dqn = False
     l2_reg = 0
-    clip_gradients = True
+    clip_gradients = False
     video_interval = 50  # every these many episodes, video recording will be done
     exploit_every = 4  # every these many episodes, agent will play without exploration
+    rnd_mode = False  # whether to use rnd intrinsic reward system
+    rnd_num_features = 10  # predict these many random features of obs
+    rnd_layers = [32, 32]  # architecture of the rnd_predictor network
+    rnd_learning_rate = 1e-4  # learning rate for the rnd_predictor network
+    render = False
 
     def __init__(self, env_id):
         self.end_id = env_id
@@ -194,6 +207,9 @@ class Context:
             episode_id = self.total_episodes
         return self.exploit_every is not None and episode_id % self.exploit_every == 0
 
+    def hidden_activation(self, x):
+        return tf.nn.relu(x)
+
     @property
     def epsilon(self):
         return self.final_epsilon + (1 - self.final_epsilon) * (1 - min(self.total_steps / self.epsilon_anneal_over, 1))
@@ -230,57 +246,68 @@ class Context:
         ), end=end)
 
 
+def dense_net(inputs, hidden_layers, hidden_activation, output_size, output_activation, name):
+    with tf.variable_scope(name):
+        prev_layer = inputs
+        for layer_id, layer in enumerate(hidden_layers):
+            h = tf.layers.dense(prev_layer, layer,
+                                activation=None, name='h{0}'.format(layer_id))
+            h = tc.layers.layer_norm(h, scale=True, center=True)
+            h = hidden_activation(h)
+            prev_layer = h
+        output_layer = tf.layers.dense(
+            prev_layer, output_size, name='output')
+        output_layer = output_activation(output_layer)
+    return output_layer
+
+
 class Brain:
     def __init__(self, context: Context, name):
         self.name = name
         self.context = context
+        self._states_running_stats = RunningStats(list(context.env.observation_space.shape))
         with tf.variable_scope(name):
             self._create_network(context)
-
-    def _dense_net(self, inputs, hidden_layers, hidden_activation, output_size, output_activation, name):
-        with tf.variable_scope(name):
-            prev_layer = inputs
-            for layer_id, layer in enumerate(hidden_layers):
-                h = tf.layers.dense(prev_layer, layer,
-                                    activation=None, name='h{0}'.format(layer_id))
-                h = tc.layers.layer_norm(h, scale=True, center=True)
-                h = hidden_activation(h)
-                prev_layer = h
-            output_layer = tf.layers.dense(
-                prev_layer, output_size, name='output')
-            output_layer = output_activation(output_layer)
-        return output_layer
 
     def _create_network(self, context: Context, name='Q_network'):
         with tf.variable_scope(name):
             self._states_placeholder = tf.placeholder(dtype=context.env.observation_space.dtype, shape=[
                                                       None] + list(context.env.observation_space.shape), name='states')
             if not context.dueling_dqn:
-                self._Q = self._dense_net(self._states_placeholder, context.layers,
-                                          tf.nn.relu, context.env.action_space.n, lambda x: x, 'Q')
+                self._Q = dense_net(self._states_placeholder, context.layers,
+                                    context.hidden_activation, context.env.action_space.n, lambda x: x, 'Q')
             else:
-                self._A_dueling = self._dense_net(self._states_placeholder, context.layers,
-                                                  tf.nn.relu, context.env.action_space.n, lambda x: x, 'A_dueling')
-                self._V_dueling = self._dense_net(self._states_placeholder, context.layers,
-                                                  tf.nn.relu, context.env.action_space.n, lambda x: x, 'V_dueling')
+                self._A_dueling = dense_net(self._states_placeholder, context.layers,
+                                            context.hidden_activation, context.env.action_space.n, lambda x: x, 'A_dueling')
+                self._V_dueling = dense_net(self._states_placeholder, context.layers,
+                                            context.hidden_activation, context.env.action_space.n, lambda x: x, 'V_dueling')
                 self._Q = self._V_dueling + self._A_dueling - \
                     tf.reduce_mean(self._A_dueling, axis=1, keepdims=True)
             self._best_action_id = tf.argmax(self._Q, axis=1, name='action')
             self._V = tf.reduce_max(self._Q, axis=1, name='V')
 
-    def get_Q(self, states):
+    def update_running_stats(self, states):
+        self._states_running_stats.update(states)
+
+    def get_Q(self, states, update_stats=False):
+        if update_stats:
+            self.update_running_stats(states)
         return self.context.session.run(self._Q, feed_dict={
-            self._states_placeholder: states
+            self._states_placeholder: self._states_running_stats.normalize(states)
         })
 
-    def get_V(self, states):
+    def get_V(self, states, update_stats=False):
+        if update_stats:
+            self.update_running_stats(states)
         return self.context.session.run(self._V, feed_dict={
-            self._states_placeholder: states
+            self._states_placeholder: self._states_running_stats.normalize(states)
         })
 
-    def get_action(self, states):
+    def get_action(self, states, update_stats=False):
+        if update_stats:
+            self.update_running_stats(states)
         return self.context.session.run(self._best_action_id, feed_dict={
-            self._states_placeholder: states
+            self._states_placeholder: self._states_running_stats.normalize(states)
         })
 
     def get_vars(self):
@@ -338,8 +365,71 @@ class Brain:
 
     def train(self, mb_states, mb_desiredQ):
         return self.context.session.run([self._sgd_step, self._mse], feed_dict={
-            self._states_placeholder: mb_states,
+            self._states_placeholder: self._states_running_stats.normalize(mb_states),
             self._desired_Q_placeholder: mb_desiredQ
+        })
+
+
+class RND_System:
+    def __init__(self, context: Context, name):
+        self.name = name
+        self.context = context
+        self._predicted_features_scope = "predicted_features"
+        env = self.context.env  # gym.Env
+        self._rewards_running_stats = RunningStats([1])
+        self._states_running_stats = RunningStats(list(env.observation_space.shape))
+        with tf.variable_scope(name):
+            self._states_feed = tf.placeholder(env.observation_space.dtype, shape=[
+                                               None] + list(env.observation_space.shape), name="states_feed")
+            self._setup_networks(predicted_features_scope=self._predicted_features_scope)
+            self._setup_reward_system()
+            self._setup_training()
+
+    def _setup_networks(self, rnd_features_scope="rnd_features", predicted_features_scope="predicted_features"):
+        self._rnd_features = dense_net(
+            self._states_feed, self.context.rnd_layers, self.context.hidden_activation, self.context.rnd_num_features, lambda x: x, rnd_features_scope)
+        self._predicted_features = dense_net(
+            self._states_feed, self.context.rnd_layers, self.context.hidden_activation, self.context.rnd_num_features, lambda x: x, predicted_features_scope)
+
+    def _setup_reward_system(self, scope="reward_system"):
+        with tf.variable_scope(scope):
+            with tf.variable_scope("squared_error"):
+                error = self._predicted_features - self._rnd_features
+                squared_error = tf.square(error)
+            self._rewards = tf.reduce_mean(
+                squared_error, axis=-1, name='rewards')
+
+    def _get_trainable_vars(self):
+        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{0}/{1}".format(self.name, self._predicted_features_scope))
+
+    def _setup_training(self, scope="training"):
+        with tf.variable_scope(scope):
+            self._optimizer = tf.train.AdamOptimizer(
+                self.context.rnd_learning_rate)
+            self._mse = tf.reduce_mean(self._rewards, name='mse')
+            self._trainable_vars = self._get_trainable_vars()
+            self._update_step = self._optimizer.minimize(
+                self._mse, var_list=self._trainable_vars)
+
+    def update_running_stats(self, states):
+        self.get_rewards(states, update_stats=True)
+
+    def get_rewards(self, states, update_stats=False):
+        if update_stats:
+            self._states_running_stats.update(states)
+        normalized_states = self._states_running_stats.normalize(states)
+        rewards = self.context.session.run(self._rewards, feed_dict={
+            self._states_feed: normalized_states
+        })
+        if update_stats:
+            self._rewards_running_stats.update(rewards)
+        normalized_rewards = self._rewards_running_stats.normalize_by_std(rewards)
+        return normalized_rewards
+
+    def train(self, states):
+        normalized_states = self._states_running_stats.normalize(states)
+        return self.context.session.run([self._update_step, self._mse], feed_dict={
+            self._states_feed: normalized_states
         })
 
 
@@ -361,6 +451,7 @@ def dqn(env_id):
         target_brain, soft_copy=False, name='target_brain_update_op')
     target_brain_soft_update_op = main_brain.setup_copy_to(
         target_brain, soft_copy=True, name='target_brain_soft_update_op')
+    rnd_system = RND_System(context, 'rnd_system')
 
     with tf.Session() as session:
         context.session = session
@@ -376,13 +467,16 @@ def dqn(env_id):
             obs = env.reset()
             while not done:
                 if np.random.random() > context.epsilon or eval_mode:
-                    action = main_brain.get_action([obs])[0]
+                    action = main_brain.get_action([obs], update_stats=True)[0]
                 else:
                     action = context.env.action_space.sample()
-                obs1, r, done, info = env.step(action)
-                experience = Experience(obs, action, r, done, info, obs1)
+                obs1, extrinsic_reward, done, info = env.step(action)
+                rnd_intrinsic_reward = rnd_system.get_rewards([obs1], update_stats=True)
+                reward = extrinsic_reward + int(context.rnd_mode) * rnd_intrinsic_reward
+                experience = Experience(obs, action, reward, done, info, obs1)
                 experience_buffer.add(experience)
-                # env.render()
+                if context.render:
+                    env.render()
 
                 # let's train:
                 frame_id = context.total_steps - 1
@@ -407,6 +501,7 @@ def dqn(env_id):
                         mb_desired_Q[exp_id, mb_actions[exp_id]] = mb_rewards[exp_id] + \
                             mb_gammas[exp_id] * mb_states1_V[exp_id]
                     _, mse = main_brain.train(mb_states, mb_desired_Q)
+                    _, rnd_mse = rnd_system.train(mb_states1)
 
                 # update target network:
                 if not context.ddpg_target_network_update_mode:

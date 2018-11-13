@@ -114,6 +114,58 @@ def py_func(func, inp, Tout, stateful=True, name=None, grad=None):
         return tf.py_func(func, inp, Tout, stateful=stateful, name=name)
 
 
+class RunningStats:
+
+    def __init__(self, shape, epsilon=1e-2):
+        self.n = 0
+        self.old_m = np.zeros(shape=shape)
+        self.new_m = np.zeros(shape=shape)
+        self.old_s = np.zeros(shape=shape)
+        self.new_s = np.zeros(shape=shape)
+        self.shape = shape
+        self.epsilon = epsilon
+        self.mean = np.zeros(shape=shape)
+        self.variance = self.epsilon * np.ones(shape=shape)
+        self.std = np.sqrt(self.variance)
+
+    def update(self, x):
+        x = np.asarray(x)
+        if len(x.shape) == len(self.shape):
+            x_batch = np.expand_dims(x, 0)
+        elif len(x.shape) == len(self.shape) + 1:
+            x_batch = x
+        else:
+            raise ValueError("bad shape of input")
+
+        for i in range(len(x_batch)):
+            x = x_batch[i]
+            self.n += 1
+
+            if self.n == 1:
+                self.old_m = self.new_m = x
+                self.old_s = np.zeros(shape=self.shape)
+            else:
+                self.new_m = self.old_m + (x - self.old_m) / self.n
+                self.new_s = self.old_s + (x - self.old_m) * (x - self.new_m)
+
+                self.old_m = self.new_m
+                self.old_s = self.new_s
+
+            self.mean = self.new_m if self.n else np.zeros(shape=self.shape)
+            variance = self.new_s / \
+                (self.n - 1) if self.n > 1 else np.zeros(shape=self.shape)
+            self.variance = np.maximum(variance, self.epsilon)
+            self.std = np.sqrt(self.variance)
+
+    def normalize(self, x):
+        x = np.asarray(x)
+        return (x - self.mean) / self.std
+
+    def normalize_by_std(self, x):
+        x = np.asarray(x)
+        return x / self.std
+
+
 def normalize(a, epsilon=1e-6):
     a = np.clip(a, 0, 1)
     a = a + epsilon
