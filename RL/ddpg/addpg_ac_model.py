@@ -3,6 +3,7 @@ import os
 import joblib
 import numpy as np
 import tensorflow as tf
+import gym
 from gym.spaces import Box
 
 from RL.common import logger
@@ -66,7 +67,7 @@ class RunningStats:
 
 
 class DDPG_Model_Base:
-    def __init__(self, session: tf.Session, name, ob_space: Box, ac_space: Box, constraints, softmax_actor,
+    def __init__(self, session: tf.Session, name, env: gym.Env, ob_space: Box, ac_space: Box, constraints, softmax_actor,
                  soft_constraints, cp_optnet, nn_size, init_scale, advantage_learning, use_layer_norm, use_batch_norm,
                  use_norm_actor, log_norm_obs_alloc, log_norm_action, rms_norm_action):
         assert len(
@@ -75,6 +76,7 @@ class DDPG_Model_Base:
             not soft_constraints), "Cannot use both soft and hard constraints"
         self.session = session
         self.name = name
+        self.env = env
         self.ac_shape = ac_space.shape
         self.ac_low = ac_space.low
         self.ac_high = ac_space.high
@@ -184,15 +186,21 @@ class DDPG_Model_Base:
                                  for child in self.constraints['children']])
                 cmax = np.array([child['max']
                                  for child in self.constraints['children']])
+                r = self.env.metadata.get('nresources', 1)
+                logger.log(
+                    "Diving the neural network output by {0} so that it need not be in small fractions".format(r))
+                a = a / r
                 if self.soft_constraints:
                     # a = tf.nn.tanh(a, 'tanh')
                     # tf_scale(a, -1, 1, cmin, cmax, "scale_to_cmin_cmax")
                     self._penalizable_a = a
                     logger.log('Actor output using optnet')
-                    a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin), scale_inputs=False)
+                    a = tf_cplex_batch_CP(
+                        a, c, cmin, cmax, len(cmin), scale_inputs=False)
                 else:
                     logger.log('Actor output using optnet')
-                    a = tf_cplex_batch_CP(a, c, cmin, cmax, len(cmin), scale_inputs=True)
+                    a = tf_cplex_batch_CP(
+                        a, c, cmin, cmax, len(cmin), scale_inputs=True)
             else:
                 logger.log('Actor output in range -1 to 1 using tanh')
                 a = tf.nn.tanh(a, 'tanh')
@@ -304,11 +312,11 @@ class DDPG_Model_Base:
 
 
 class DDPG_Model_Main(DDPG_Model_Base):
-    def __init__(self, session: tf.Session, name, ob_space: Box, ac_space: Box, constraints, softmax_actor,
+    def __init__(self, session: tf.Session, name, env: gym.Env, ob_space: Box, ac_space: Box, constraints, softmax_actor,
                  soft_constraints, soft_constraints_lambda, cp_optnet, nn_size, lr, a_lr, init_scale, advantage_learning,
                  use_layer_norm, use_batch_norm, use_norm_actor, l2_reg, a_l2_reg, clip_norm,
                  a_clip_norm, log_norm_obs_alloc, log_norm_action, rms_norm_action, **kwargs):
-        super().__init__(session=session, name=name, ob_space=ob_space, ac_space=ac_space, constraints=constraints, softmax_actor=softmax_actor,
+        super().__init__(session=session, name=name, env=env, ob_space=ob_space, ac_space=ac_space, constraints=constraints, softmax_actor=softmax_actor,
                          soft_constraints=soft_constraints, cp_optnet=cp_optnet, nn_size=nn_size, init_scale=init_scale,
                          advantage_learning=advantage_learning, use_layer_norm=use_layer_norm,
                          use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,
@@ -526,11 +534,11 @@ class DDPG_Model_Main(DDPG_Model_Base):
 
 
 class DDPG_Model_Target(DDPG_Model_Base):
-    def __init__(self, session: tf.Session, name, main_network: DDPG_Model_Main, ob_space, ac_space, constraints,
+    def __init__(self, session: tf.Session, name, main_network: DDPG_Model_Main, env: gym.Env, ob_space, ac_space, constraints,
                  softmax_actor, soft_constraints, cp_optnet, nn_size, init_scale, advantage_learning,
                  use_layer_norm, use_batch_norm, use_norm_actor, tau,
                  log_norm_obs_alloc, log_norm_action, rms_norm_action, **kwargs):
-        super().__init__(session=session, name=name, ob_space=ob_space, ac_space=ac_space, constraints=constraints,
+        super().__init__(session=session, name=name, env=env, ob_space=ob_space, ac_space=ac_space, constraints=constraints,
                          softmax_actor=softmax_actor, soft_constraints=soft_constraints, cp_optnet=cp_optnet, nn_size=nn_size,
                          init_scale=init_scale, advantage_learning=advantage_learning,
                          use_layer_norm=use_layer_norm, use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,
@@ -579,11 +587,11 @@ class DDPG_Model_Target(DDPG_Model_Base):
 
 
 class DDPG_Model_With_Param_Noise(DDPG_Model_Base):
-    def __init__(self, session: tf.Session, name, main_network: DDPG_Model_Main, target_divergence, ob_space, ac_space, constraints,
+    def __init__(self, session: tf.Session, name, main_network: DDPG_Model_Main, env: gym.Env, target_divergence, ob_space, ac_space, constraints,
                  softmax_actor, soft_constraints, cp_optnet, nn_size, init_scale, advantage_learning,
                  use_layer_norm, use_batch_norm, use_norm_actor,
                  log_norm_obs_alloc, log_norm_action, rms_norm_action, **kwargs):
-        super().__init__(session=session, name=name, ob_space=ob_space, ac_space=ac_space, constraints=constraints,
+        super().__init__(session=session, name=name, env=env, ob_space=ob_space, ac_space=ac_space, constraints=constraints,
                          softmax_actor=softmax_actor, soft_constraints=soft_constraints, cp_optnet=cp_optnet, nn_size=nn_size,
                          init_scale=init_scale, advantage_learning=advantage_learning,
                          use_layer_norm=use_layer_norm, use_batch_norm=use_batch_norm, use_norm_actor=use_norm_actor,

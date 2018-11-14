@@ -222,6 +222,7 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         from RL.common.utils import my_video_schedule
         env = gym.wrappers.Monitor(env, os.path.join(logger.get_dir(), 'monitor'), video_callable=lambda ep_id: my_video_schedule(
             ep_id, learning_episodes if learning else test_episodes, video_interval))
+    sys_args_dict["env"] = env
     if actor is None:
         sys_args_dict["ob_space"] = env.observation_space
         sys_args_dict["ac_space"] = env.action_space
