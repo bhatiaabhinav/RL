@@ -30,4 +30,4 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=sc_optnet64_rmsac_wolpert
+	--run_no_prefix=sc_optnet64

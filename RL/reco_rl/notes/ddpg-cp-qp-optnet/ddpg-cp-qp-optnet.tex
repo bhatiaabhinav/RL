@@ -22,7 +22,7 @@
 
 Given a given node $g$ (which has already been allocated $C$ resources) from the constraints tree, we want to allocate resources to it's $k$ children such that:
 \[\sum_i^k z_i = C \]
-\[\forall_i^k : 0 \le \check{C_i} \le z_i \le \hat{C_i} \le 1\]
+\[\forall i=1..k : 0 \le \check{C_i} \le z_i \le \hat{C_i} \le 1\]
 
 We are given $C$ and a vector $\vec{y} \in [0, 1]^k$. We want to project this vector to the nearest (by $L_2$ norm) feasible solution $\vec{z}$.
 
@@ -33,8 +33,8 @@ We are given $C$ and a vector $\vec{y} \in [0, 1]^k$. We want to project this ve
     \begin{aligned}
         \underset{\vec{z}}{\min} \sum_i^k (z_i - y_i)^2 \quad &\text{subject to} \\
         \sum_i^k z_i - C &= 0                   \qquad \lambda\\
-        \forall_i^k : z_i - \hat{C_i} &\le 0      \qquad \alpha_i\\
-        \forall_i^k : \check{C_i} - z_i &\le 0    \qquad \beta_i
+        \forall i=1..k : z_i - \hat{C_i} &\le 0      \qquad \alpha_i\\
+        \forall i=1..k : \check{C_i} - z_i &\le 0    \qquad \beta_i
     \end{aligned}
 \end{equation}
 Here $\lambda,\alpha_i,\beta_i$ are the corresponding Lagrange multipliers.
@@ -57,17 +57,17 @@ The Langragian is:
 The KKT conditions (conditions satisfied by the solution $\vec{z}^*, \vec{\alpha}^*, \vec{\beta}^*, \lambda^*$ of the QP \ref{qp}) is given by
 \begin{align*}
     &\nabla_{\vec{z},\lambda} L & = \vec{0} \\
-    \forall_i^k : \quad &\alpha_i(z_i - \hat{C_i}) & = 0 \\
-    \forall_i^k : \quad &\beta_i(\check{C_i} - z_i) & = 0
+    \forall i=1..k : \quad &\alpha_i(z_i - \hat{C_i}) & = 0 \\
+    \forall i=1..k : \quad &\beta_i(\check{C_i} - z_i) & = 0
 \end{align*}
 which expand to:
 \begin{equation}\label{eqns_kkt}
     \begin{cases}
         \begin{aligned}
             &\sum_i^k z_i - C & = 0 \\
-            \forall_i^k : \quad & 2(z_i-y_i) + \lambda + \alpha_i - \beta_i & = 0 \\
-            \forall_i^k : \quad & \alpha_i(z_i - \hat{C_i}) & = 0 \\
-            \forall_i^k : \quad & \beta_i(\check{C_i} - z_i) & = 0
+            \forall i=1..k : \quad & 2(z_i-y_i) + \lambda + \alpha_i - \beta_i & = 0 \\
+            \forall i=1..k : \quad & \alpha_i(z_i - \hat{C_i}) & = 0 \\
+            \forall i=1..k : \quad & \beta_i(\check{C_i} - z_i) & = 0
         \end{aligned}
     \end{cases}
 \end{equation}
@@ -84,11 +84,11 @@ The partial differential equations w.r.t. input $y_j$ are:
         \begin{aligned}
             & \sum_i^k \frac{\partial z_i}{\partial y_j} & = 0 &\quad (a)\\
             
-            \forall_i^k : \quad & 2\frac{\partial z_i}{\partial y_j} - 2\delta_{ij} + \frac{\partial \lambda}{\partial y_j} + \frac{\partial \alpha_i}{\partial y_j} - \frac{\partial \beta_i}{\partial y_j} & = 0 &\quad (b)\\
+            \forall i=1..k : \quad & 2\frac{\partial z_i}{\partial y_j} - 2\delta_{ij} + \frac{\partial \lambda}{\partial y_j} + \frac{\partial \alpha_i}{\partial y_j} - \frac{\partial \beta_i}{\partial y_j} & = 0 &\quad (b)\\
             
-            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial y_j}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial y_j} & = 0 &\quad (c)\\
+            \forall i=1..k : \quad & \frac{\partial \alpha_i}{\partial y_j}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial y_j} & = 0 &\quad (c)\\
             
-            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial y_j}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial y_j}& = 0 &\quad (d)
+            \forall i=1..k : \quad & \frac{\partial \beta_i}{\partial y_j}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial y_j}& = 0 &\quad (d)
         \end{aligned}
     \end{cases}
 \end{equation}
@@ -100,11 +100,11 @@ The partial differential equations w.r.t $C$ are:
         \begin{aligned}
             & \sum_i^k \frac{\partial z_i}{\partial C} - 1 & = 0 &\quad (a)\\
             
-            \forall_i^k : \quad & 2\frac{\partial z_i}{\partial C} + \frac{\partial \lambda}{\partial C} + \frac{\partial \alpha_i}{\partial C} - \frac{\partial \beta_i}{\partial C} & = 0 &\quad (b) \\
+            \forall i=1..k : \quad & 2\frac{\partial z_i}{\partial C} + \frac{\partial \lambda}{\partial C} + \frac{\partial \alpha_i}{\partial C} - \frac{\partial \beta_i}{\partial C} & = 0 &\quad (b) \\
             
-            \forall_i^k : \quad & \frac{\partial \alpha_i}{\partial C}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial C} & = 0 &\quad (c) \\
+            \forall i=1..k : \quad & \frac{\partial \alpha_i}{\partial C}(z_i - \hat{C_i}) + \alpha_i \frac{\partial z_i}{\partial C} & = 0 &\quad (c) \\
             
-            \forall_i^k : \quad & \frac{\partial \beta_i}{\partial C}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial C}& = 0 &\quad (d)
+            \forall i=1..k : \quad & \frac{\partial \beta_i}{\partial C}(-z_i + \check{C_i}) - \beta_i \frac{\partial z_i}{\partial C}& = 0 &\quad (d)
         \end{aligned}
     \end{cases}
 \end{equation}
@@ -271,7 +271,7 @@ which expand to:
     \begin{cases}
         \begin{aligned}
             \forall s=1..N &: \sum_i^k z_{si} - C_s & = 0 \\
-            \forall s=1..N : \forall i=1..k \quad &: 2(z_{si}-y_{si}) + \lambda_s + \alpha_{si} & = 0 \\
+            \forall s=1..N : \forall i=1..k \quad &: 2(z_{si}-y_{si}) + \lambda_s + \alpha_{si} + \beta_{si} & = 0 \\
             \forall s=1..N : \forall i=1..k \quad &: \alpha_{si}(z_{si} - \hat{C_{si}}) & = 0 \\
             \forall s=1..N : \forall i=1..k \quad &: \beta_{si}(-z_{si} + \check{C_{si}}) & = 0 \\
         \end{aligned}
@@ -312,6 +312,103 @@ For the entire minibatch, $\mathcal{O}(N k^3)$. Computation per minibatch can be
 We can define new ops in tensorflow. for backward pass, the matrix calculations can be done using the tensorflow function, i.e. it can be done on a GPU.
 
 
+\section{2-level constraints}
+
+Let us try to consider 2-level constraints. Notation:
+
+\begin{center}
+    \begin{tabular}{r l}
+        $N$ & batch size i.e. number of samples \\
+        $n$ & refering to sameple $n$ \\
+        $K$ & total number of zones \\
+        $k$ & refering to zone $k$ \\
+        $G$ & total number of groups/regions \\
+        $g$ & refering to group g \\
+        $\mathbb{K}_g$ & set of zone ids under $g$. Mutually exclusive and exhaustive. Thus $\sum_{g=1}^G |\mathbb{K}_g| = K$ \\
+        $gr(k)$ & = $g$ s.t. $k \in \mathbb{K}_g$ \\
+        $z_{nk}$ & allocation for zone $k$ for sample $n$ \\
+        $y_{nk}$ & neural network output for zone $k$ for sample $n$\\
+        $z_k$ & allocation for zone $k$ ($n$ implicit from context)\\
+        $y_k$ & neural network output for zone $k$ ($n$ implicit from context)\\
+        $c$ & sum of resources. typically $c=1$ \\
+        $\hat{c_k}$ & upper bound contraint for $z_k$ \\
+        $\check{c_k}$ & lower bound contraint for $z_k$ \\
+        $\hat{m_g}$ & upper bound contraint for $\sum_{k \in \mathbb{K}_g} z_k$ \\
+        $\check{m_g}$ & lower bound contraint for $\sum_{k \in \mathbb{K}_g} z_k$  \\
+    \end{tabular}
+\end{center}
+
+\subsection{QP}
+
+\begin{equation} \label{batch_nested_qp}
+    \begin{aligned}
+        \underset{\bm{z}}{\min} \sum_n^N \sum_k^K (z_{nk} - y_{nk})^2 \quad &\text{subject to} \\
+        \forall n=1..N: & \sum_k^K z_{nk} - c &= 0                   \qquad \lambda_n\\
+        \forall n=1..N: \forall g=1..G: & \sum_{k \in \mathbb{K}_g} z_{nk} - \hat{m_{g}} &\le 0 \qquad \mu_{ng} \\
+        \forall n=1..N: \forall g=1..G: & -\sum_{k \in \mathbb{K}_g} z_{nk} + \check{m_{g}} &\le 0 \qquad \nu_{ng} \\
+        \forall n=1..N: \forall k=1..K: & \ z_{nk} - \hat{c_{k}} &\le 0      \qquad \alpha_{nk}\\
+        \forall n=1..N: \forall k=1..K : & \ -z_{nk} + \check{c_{k}} &\le 0 \qquad \beta_{nk}\\
+    \end{aligned}
+\end{equation}
+Here $\lambda_n, \mu_{ng}, \nu_{ng}, \alpha_{nk}, \beta_{nk}$ are the corresponding Lagrange multipliers.
+
+
+\subsection{KKT Conditions}
+
+The Langragian is:
+\begin{multline}
+    L(\bm{z},\bm{\alpha},\bm{\beta},\bm{\mu},\bm{\nu},\vec{\lambda}) = \sum_n^N \sum_k^K (z_{nk}-y_{nk})^2 + \sum_n^N \lambda_n (\sum_k^K z_{nk} - c) \\
+    + \sum_n^N \sum_g^G \mu_{ng}(\sum_{k \in \mathbb{K}_g} z_{nk} - \hat{m_{g}})
+    + \sum_n^N \sum_g^G \nu_{ng}(-\sum_{k \in \mathbb{K}_g} z_{nk} + \check{m_{g}}) \\
+    + \sum_n^N \sum_k^K \alpha_{nk}(z_{nk} - \hat{c_k}) + \sum_n^N \sum_k^K \beta_{nk}(\check{c_k} - z_{nk})
+\end{multline}
+
+The KKT conditions (conditions satisfied by the solution $\bm{z}^*, \bm{\mu}^*, \bm{\nu}^*, \bm{\alpha}^*, \bm{\beta}^* \vec{\lambda}^*$ of the QP \ref{batch_nested_qp}) is given by
+\begin{align*}
+    &\nabla_{\bm{z},\vec{\lambda}} L & = \bm{0} \\
+    \forall n=1..N: \forall g=1..G: \quad &\mu_{ng}(\sum_{k \in \mathbb{K}_g} z_{nk} - \hat{m_{g}}) & = 0 \\
+    \forall n=1..N: \forall g=1..G: \quad &\nu_{ng}(-\sum_{k \in \mathbb{K}_g} z_{nk} + \check{m_{g}}) & = 0 \\
+    \forall n=1..N: \forall k=1..K: \quad &\alpha_{nk}(z_{nk} - \hat{c_k}) & = 0 \\
+    \forall n=1..N: \forall k=1..K: \quad &\beta_{nk}(-z_{nk} + \check{c_k}) & = 0 \\
+\end{align*}
+which expand to:
+\begin{equation}\label{eqns_batch_nesteted_kkt}
+    \begin{cases}
+        \begin{aligned}
+            \forall n=1..N &: \sum_k^K z_{nk} - c & = 0 \\
+            \forall n=1..N : \forall k=1..K \quad &: 2(z_{nk}-y_{nk}) + \lambda_n + \mu_{n,gr(k)} - \nu_{n,gr(k)} + \alpha_{nk} + \beta_{nk} & = 0 \\
+            \forall n=1..N: \forall g=1..G: \quad &\mu_{ng}(\sum_{k \in \mathbb{K}_g} z_{nk} - \hat{m_{g}}) & = 0 \\
+            \forall n=1..N: \forall g=1..G: \quad &\nu_{ng}(-\sum_{k \in \mathbb{K}_g} z_{nk} + \check{m_{g}}) & = 0 \\
+            \forall n=1..N: \forall k=1..K: \quad &\alpha_{nk}(z_{nk} - \hat{c_k}) & = 0 \\
+            \forall n=1..N: \forall k=1..K: \quad &\beta_{nk}(-z_{nk} + \check{c_k}) & = 0 \\
+        \end{aligned}
+    \end{cases}
+\end{equation}
+i.e. $N(3K + 2G + 1)$ equations.
+
+
+\subsection{Differenting KKT equantions}
+Since, samples do not affect each other, $\frac{\partial z_{n_1 k_1}}{\partial y_{n_2 k_2}}=0$ when $n_1 \ne n_2$. So the KKT conditions can be differentiated independently for each $n$. Let the subscript $n$ be implicit from now on.
+
+The partial differential equations w.r.t. input $y_j$ are:
+\begin{equation}\label{eqns_nested_wrt_y_j}
+    \begin{cases}
+        \begin{aligned}
+            & \sum_k^K \frac{\partial z_k}{\partial y_j} & = 0 &\quad (a)\\
+            
+            \forall k=1..K : \quad & 2\frac{\partial z_i}{\partial y_j} - 2\delta_{kj} + \frac{\partial \lambda}{\partial y_j} + \frac{\partial \mu_{gr(k)}}{\partial y_j} - \frac{\partial \nu_{gr(k)}}{\partial y_j} + \frac{\partial \alpha_k}{\partial y_j} - \frac{\partial \beta_k}{\partial y_j} & = 0 &\quad (b)\\
+            
+            \forall k=1..K : \quad & \frac{\partial \alpha_k}{\partial y_j}(z_k - \hat{c_k}) + \alpha_k \frac{\partial z_k}{\partial y_j} & = 0 &\quad (c)\\
+            
+            \forall k=1..K : \quad & \frac{\partial \beta_k}{\partial y_j}(z_k - \check{c_k}) + \beta_k \frac{\partial z_k}{\partial y_j}& = 0 &\quad (d) \\
+
+            \forall g=1..G : \quad & \frac{\partial \mu_g}{\partial y_j}(\sum_{k \in \mathbb{K}_g} z_{k} - \hat{m_{g}}) + \mu_g \sum_{k \in \mathbb{K}_g} \frac{\partial z_k}{\partial y_j}& = 0 &\quad (e) \\
+
+            \forall g=1..G : \quad & \frac{\partial \nu_g}{\partial y_j}(\sum_{k \in \mathbb{K}_g} z_{k} - \check{m_{g}}) + \nu_g \sum_{k \in \mathbb{K}_g} \frac{\partial z_k}{\partial y_j}& = 0 &\quad (f)
+        \end{aligned}
+    \end{cases}
+\end{equation}
+Here $\delta_{kj}$ is the Kronecker delta function, which is $1$ when $k=j$, and $0$ otherwise.
 
 
 \end{document}

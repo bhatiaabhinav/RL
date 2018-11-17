@@ -20,7 +20,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--use_safe_noise=False \
 	--exploration_theta=1 \
 	--training_episodes=10000 \
-	--mb_size=64 \
+	--mb_size=128 \
 	--init_scale=3e-3 \
 	--lr=1e-3 \
 	--a_lr=1e-4 \
