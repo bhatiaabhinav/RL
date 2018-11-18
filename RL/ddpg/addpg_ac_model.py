@@ -186,10 +186,6 @@ class DDPG_Model_Base:
                                  for child in self.constraints['children']])
                 cmax = np.array([child['max']
                                  for child in self.constraints['children']])
-                r = self.env.metadata.get('nresources', 1)
-                logger.log(
-                    "Diving the neural network output by {0} so that it need not be in small fractions".format(r))
-                a = a / r
                 if self.soft_constraints:
                     self._penalizable_a = a
                 logger.log('Actor output using optnet')
