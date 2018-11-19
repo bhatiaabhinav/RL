@@ -8,7 +8,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--soft_constraints=False \
 	--soft_constraints_lambda=1000 \
 	--softmax_actor=True \
-	--wolpertinger_critic_train=False \
+	--wolpertinger_critic_train=True \
 	--log_norm_obs_alloc=False \
 	--log_norm_action=False \
 	--rms_norm_action=True \
@@ -29,4 +29,4 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=cddpg_rmsac
+	--run_no_prefix=ddpg-cs
