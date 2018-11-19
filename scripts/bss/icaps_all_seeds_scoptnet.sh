@@ -32,5 +32,6 @@ do
         --logger_level=INFO \
         --use_batch_norm=False \
         --use_layer_norm=True \
-        --run_no_prefix=ddpg-scoptnet-$seed
+        --run_no_prefix=ddpg-scoptnet-$seed \
+        &
 done
