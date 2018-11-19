@@ -1,4 +1,4 @@
-for seed in {0..4};
+for seed in $(seq 0 4);
 do
     $GYM_PYTHON -m RL.ddpg.addpg_solver \
         --env=BSSEnv-$1 \
