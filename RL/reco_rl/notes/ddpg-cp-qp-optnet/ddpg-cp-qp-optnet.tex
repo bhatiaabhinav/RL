@@ -4,6 +4,7 @@
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{xcolor}
 \usepackage{pagecolor}
+\usepackage{algorithm, algorithmicx}
 
 \definecolor{bgcolor}{RGB}{30,30,30}
 \definecolor{fgcolor}{RGB}{225,225,225}
@@ -409,6 +410,21 @@ The partial differential equations w.r.t. input $y_j$ are:
     \end{cases}
 \end{equation}
 Here $\delta_{kj}$ is the Kronecker delta function, which is $1$ when $k=j$, and $0$ otherwise.
+
+
+\section{Approximate Optnet}
+The QP \ref{qp} can be solved approximately using the following algorithm:
+
+\begin{algorithm} \label{algo_apprx_qp}
+    \caption{Approximate Solution to QP \ref{qp}}
+    \begin{algorithmic}[1]
+        \State $k' \gets k$
+        \State $c' \gets c$
+        \State $\Omega \gets \{1,2,...,k\}$
+        \State $l \gets \text{FALSE}$
+        \State $d \gets \text{FALSE}$
+    \end{algorithmic}
+\end{algorithm}
 
 
 \end{document}
