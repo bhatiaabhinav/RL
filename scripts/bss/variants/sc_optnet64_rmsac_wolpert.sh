@@ -6,7 +6,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--nstack=3 \
 	--nn_size="[400,300]" \
 	--soft_constraints=True \
-	--soft_constraints_lambda=100000 \
+	--soft_constraints_lambda=10000 \
 	--softmax_actor=False \
 	--cp_optnet=True \
 	--wolpertinger_critic_train=True \
@@ -30,4 +30,4 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=sc_optnet64
+	--run_no_prefix=ddpg-scoptnet64
