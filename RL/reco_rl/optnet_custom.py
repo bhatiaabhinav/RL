@@ -1,7 +1,11 @@
+import os
+
 import numpy as np
 import tensorflow as tf
 
 from RL.common.utils import py_func, tf_scale
+
+use_extra_grads = int(os.getenv('RL_APPRX_OPTNET_USE_LEAKY_GRADS', "0"))
 
 
 def _preprocess_input_for_custom_batch_cp(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: np.ndarray, k):
@@ -61,11 +65,16 @@ def _custom_batch_cp_fast(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cmax: 
                 unallocated_indices_mask = unallocated_indices_mask - \
                     violating_indices_mask_new.astype(np.float32)
         if want_jacobian:
-            grads_z = np.identity(k, dtype=np.float32) + - \
-                1 / _k * np.ones(k, dtype=np.float32)
-            unallocated_indices_mask_transpose = np.expand_dims(
-                unallocated_indices_mask, axis=-1)
-            J[n] = unallocated_indices_mask_transpose * grads_z
+            if use_extra_grads:
+                grads_z = np.identity(k, dtype=np.float32) - \
+                    (1 / k) * np.ones([k, k])
+                J[n] = grads_z
+            else:
+                grads_z = np.identity(k, dtype=np.float32) - \
+                    (1 / _k) * np.ones([k, k])
+                grads_mask = np.outer(
+                    unallocated_indices_mask, unallocated_indices_mask)
+                J[n] = grads_z * grads_mask
     if want_jacobian:
         return z, J
     else:
@@ -102,12 +111,16 @@ def _custom_batch_cp_fastest(y: np.ndarray, c: np.ndarray, cmin: np.ndarray, cma
             unallocated_indices_mask = unallocated_indices_mask - \
                 violating_indices_mask_new.astype(np.float32)
     if want_jacobian:
-        grads_z = np.array([np.identity(k, dtype=np.float32)] * N, dtype=np.float32) + \
-            (-1 / np.reshape(_k, [N, 1, 1])) * \
-            np.ones([N, k, k], dtype=np.float32)
-        unallocated_indices_mask_transpose = np.expand_dims(
-            unallocated_indices_mask, axis=-1)
-        J = unallocated_indices_mask_transpose * grads_z
+        if use_extra_grads:
+            grads_z = np.array([np.identity(k, dtype=np.float32)] * N,
+                               dtype=np.float32) - (1 / k) * np.ones([N, k, k], dtype=np.float32)
+            J = grads_z
+        else:
+            grads_z = np.array([np.identity(k, dtype=np.float32)] * N, dtype=np.float32) - (
+                1 / np.reshape(_k, [N, 1, 1])) * np.ones([N, k, k], dtype=np.float32)
+            grads_mask = np.matmul(np.expand_dims(
+                unallocated_indices_mask, axis=-1), np.expand_dims(unallocated_indices_mask, axis=-2))
+            J = grads_z * grads_mask
         return z, J
     else:
         return z

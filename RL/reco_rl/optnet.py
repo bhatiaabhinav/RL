@@ -12,7 +12,7 @@ optnet_layer = None
 optnet_jacobians = None
 tf_optnet_layer = None
 
-use_custom_optnet = int(os.getenv('RL_OPTNET_APPROXIMATE', "1"))
+use_custom_optnet = int(os.getenv('RL_USE_APPRX_OPTNET', "1"))
 if use_custom_optnet:
     from RL.reco_rl.optnet_custom import custom_batch_cp, custom_batch_cp_jacobian, tf_custom_batch_cp
     optnet_layer = custom_batch_cp
