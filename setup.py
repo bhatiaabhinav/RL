@@ -8,7 +8,7 @@ if sys.version_info.major != 3:
 
 setup(name='RL',
       install_requires=[
-          'gym[mujoco,atari,classic_control]',
+          'gym[atari,classic_control]',
           'scipy',
           'tqdm',
           'joblib',
