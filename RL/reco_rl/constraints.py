@@ -450,7 +450,7 @@ def cplex_nearest_feasible(action, constraints):
         'feasible_action': feasible_action,
         'modification': feasible_action - np.array(action),
         'status': prob.solution.status[prob.solution.get_status()],
-        'L2_diff': np.sqrt(prob.solution.get_objective_value()),
+        # 'L2_diff': np.sqrt(prob.solution.get_objective_value()),
         'prob': prob
     }
 
