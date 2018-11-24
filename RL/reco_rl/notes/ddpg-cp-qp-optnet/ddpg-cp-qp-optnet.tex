@@ -4,7 +4,7 @@
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{xcolor}
 \usepackage{pagecolor}
-\usepackage{algorithm, algorithmicx}
+\usepackage{algorithm, algorithmicx, algpseudocode}
 
 \definecolor{bgcolor}{RGB}{30,30,30}
 \definecolor{fgcolor}{RGB}{225,225,225}
@@ -418,11 +418,43 @@ The QP \ref{qp} can be solved approximately using the following algorithm:
 \begin{algorithm} \label{algo_apprx_qp}
     \caption{Approximate Solution to QP \ref{qp}}
     \begin{algorithmic}[1]
+        \Require $k \ge 2$
+        \Require $\forall i=1..k: 0 \le \check{c_i} < \hat{c_i} \le c$
+        \Require $\sum \check{c_i} < c < \sum \hat{c_i}$
         \State $k' \gets k$
         \State $c' \gets c$
-        \State $\Omega \gets \{1,2,...,k\}$
-        \State $l \gets \text{FALSE}$
-        \State $d \gets \text{FALSE}$
+        \State $\Omega \gets \{1,2,...,k\}$ \Comment{unassigned output indices}
+        \State $\text{phase} \gets \text{LOWER}$ \Comment{possible values are: $\text{LOWER} = 0; \text{UPPER}=1; \text{DONE}=2$}
+        \While{$\text{phase} \ne \text{DONE}$}
+            \State $\Omega' \gets \phi$
+            \For{$i \in \Omega$}
+                \State $z_i \gets y_i + (c'-\sum_{j \in \Omega} y_j)/k'$
+                \State $J_{ij} \gets \delta_{ij} - 1/k' \ \mathbf{foreach}\  j \in \Omega'$
+                \For{$j \in \Omega$}
+                    
+                \EndFor
+                \If{$z_i < \check{c_i}\  \textbf{and}\  \text{phase}=\text{LOWER}$}
+                    \State $z_i \gets \check{c_i}$
+                    \State $J_{ij} \gets 0 \ \mathbf{foreach}\  j=1..k$
+                    \State $\Omega' \gets \Omega' \cup \{i\}$
+                \ElsIf{$z_i > \hat{c_i} \ \textbf{and} \  \text{phase}=\text{UPPER}$}
+                    \State $z_i \gets \hat{c_i}$
+                    \State $J_{ij} \gets 0 \ \mathbf{foreach}\  j=1..k$
+                    \State $\Omega' \gets \Omega' \cup \{i\}$
+                \EndIf
+            \EndFor
+
+            \State $k' \gets k'- |\Omega'|$
+            \State $c' \gets c' - \sum_{i \in \Omega'} z_i$
+            \State $\Omega \gets \Omega - \Omega'$
+            \If{$\Omega' = \phi$}
+                \State $\text{phase} = \text{phase} + 1$
+            \EndIf
+        \EndWhile
+        \State \Return $z, J$
+        \Ensure $\forall i: \check{c_i} \le z_i \le \hat{c_i}$
+        \Ensure $\sum_{i=1}^k z_i = c$
+        \Ensure $z = y \ \mathbf{if}\ \sum_{i=1}^k y_i = c \ \mathbf{and}\ \forall i: \check{c_i} \le y_i \le \hat{c_i}$
     \end{algorithmic}
 \end{algorithm}
 
