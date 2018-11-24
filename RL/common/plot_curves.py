@@ -36,66 +36,39 @@ args = parser.parse_args()
 # refer:
 # https://matplotlib.org/examples/color/named_colors.html
 color_map = {
-    'sddpg': 'gold',
-    'sddpg_rmsac': 'orange',
-    'sddpg_rmsac_wolpert': 'darkorange',
-    'sddpg_logac': 'coral',
-    'sddpg_logboth': 'indianred',
-    'cddpg': 'lightgreen',
-    'cddpg_wolpert': 'mediumseagreen',
-    'cddpg_rmsac': 'turquoise',
-    'cddpg_rmsac_wolpert': 'teal',
-    'cddpg_logac': 'skyblue',
-    'cddpg_logac_wolpert': 'steelblue',
-    'cddpg_logboth': 'mediumpurple',
-    'cddpg_logboth_wolpert': 'darkorchid',
-    'optnet64_rmsac_wolpert': 'mediumpurple',
-    'optnet_rmsac_wolpert': 'darkorchid',
-    'static': 'silver',
-    'uniform': 'silver',
-    'no_repositioning': 'silver',
-    'greedy': 'gray',
-    'vehicle_repositioning': 'gray',
-    'rtrailer_cap5': 'gray'
+    'DDPG-CP': 'darkorange',
+    'DDPG-CS': 'teal',
+    'DDPG-ApprOpt': 'darkorchid',
+    'Static': 'silver',
+    'Uniform': 'silver',
+    'No-Repositioning': 'silver',
+    'Greedy-Static': 'gray',
+    'Greedy': 'gray',
+    'Vehicle-Repositioning': 'gray',
+    'RTrailer(capacity=5)': 'gray'
 }
 
 line_style_map = {
-    'sddpg_rmsac_wolpert': '--',
-    'cddpg_rmsac_wolpert': '-.',
-    'optnet64_rmsac_wolpert': '-',
-    'optnet_rmsac_wolpert': '-',
-    'greedy': ':',
-    'vehicle_repositioning': ':',
-    'rtrailer_cap5': ':'
-}
-
-marker_map = {
-    # 'sddpg_rmsac_wolpert': 'o',
-    # 'cddpg_rmsac_wolpert': '+'
+    'DDPG-CP': '--',
+    'DDPG-CS': '-.',
+    'DDPG-ApprOpt': '-',
+    'Greedy-Static': ':',
+    'Greedy': ':',
+    'Vehicle-Repositioning': ':',
+    'RTrailer(capacity=5)': ':'
 }
 
 legend_sort_order = {
-    'sddpg': 20,
-    'sddpg_rmsac': 30,
-    'sddpg_rmsac_wolpert': 35,
-    'sddpg_logac': 40,
-    'sddpg_logboth': 50,
-    'cddpg': 60,
-    'cddpg_wolpert': 70,
-    'cddpg_rmsac': 80,
-    'cddpg_rmsac_wolpert': 90,
-    'cddpg_logac': 100,
-    'cddpg_logac_wolpert': 110,
-    'cddpg_logboth': 120,
-    'cddpg_logboth_wolpert': 130,
-    'optnet64_rmsac_wolpert': 150,
-    'optnet_rmsac_wolpert': 155,
-    'static': 0,
-    'uniform': 0,
-    'no_repositioning': 0,
-    'greedy': 10,
-    'rtrailer_cap5': 15,
-    'vehicle_repositioning': 10
+    'DDPG-CP': 35,
+    'DDPG-CS': 90,
+    'DDPG-ApprOpt': 155,
+    'Static': 0,
+    'Uniform': 0,
+    'No-Repositioning': 0,
+    'Greedy-Static': 10,
+    'Greedy': 10,
+    'RTrailer(capacity=5)': 15,
+    'Vehicle-Repositioning': 10
 }
 
 
@@ -164,37 +137,57 @@ def read_all_data(dirs, metrics):
         if ':' in dir_name:
             plot_name = dir_name.split(':')[0]
             dir_name = dir_name.split(':')[1]
-        logs_dir = os.path.join(args.logdir, args.env, dir_name)
-        if os.path.isdir(logs_dir):
-            baseline_fname = os.path.join(logs_dir, 'baseline.json')
-            progress_fname = os.path.join(logs_dir, 'progress.json')
-            if os.path.exists(baseline_fname):
-                try:
-                    baseline_data = load_baseline(baseline_fname, metrics)
-                    data[dir_name] = {
-                        "dir_name": dir_name,
-                        "plot_name": plot_name,
-                        "baseline_data": baseline_data,
-                    }
-                except Exception as e:
-                    print(
-                        "Could not read baseline.json for {0}".format(dir_name))
-                    print(type(e), e)
-            elif os.path.exists(progress_fname):
-                try:
-                    plot_data, plot_episodes = load_progress(
-                        progress_fname, metrics)
-                    data[dir_name] = {
-                        "dir_name": dir_name,
-                        "plot_name": plot_name,
-                        "plot_data": plot_data
-                    }
-                    episodes = max(episodes, plot_episodes)
-                except Exception as e:
-                    print(
-                        "Could not read progress.json for {0}".format(dir_name))
-                    print(type(e), e)
-    return data, episodes
+        print('plot_name:', plot_name)
+        print('dir_name:', dir_name)
+        if dir_name[-1] == '*':
+            full_dir_name = os.path.join(args.logdir, args.env, dir_name[:-1])
+            all_matching_dir_names = list(filter(lambda x: x.startswith(dir_name[:-1]), os.listdir(os.path.join(args.logdir, args.env))))
+        else:
+            all_matching_dir_names = [dir_name]
+        print('Matching dir_names:', all_matching_dir_names)
+        all_matching_full_dir_names = [os.path.join(args.logdir, args.env, d) for d in all_matching_dir_names]
+        print('Matching full dir names:', all_matching_full_dir_names)
+        
+        for dir_name, full_dir_name in zip(all_matching_dir_names, all_matching_full_dir_names):
+            print('checking: ', full_dir_name)
+            if os.path.isdir(full_dir_name):
+                print('reading for', full_dir_name)
+                baseline_fname = os.path.join(full_dir_name, 'baseline.json')
+                progress_fname = os.path.join(full_dir_name, 'progress.json')
+                if os.path.exists(baseline_fname):
+                    try:
+                        baseline_data = load_baseline(baseline_fname, metrics)
+                        data[dir_name] = {
+                            "dir_name": dir_name,
+                            "plot_name": plot_name,
+                            "baseline_data": baseline_data,
+                        }
+                    except Exception as e:
+                        print(
+                            "Could not read baseline.json for {0}".format(dir_name))
+                        print(type(e), e)
+                elif os.path.exists(progress_fname):
+                    try:
+                        plot_data, plot_episodes = load_progress(
+                            progress_fname, metrics)
+                        data[dir_name] = {
+                            "dir_name": dir_name,
+                            "plot_name": plot_name,
+                            "plot_data": plot_data
+                        }
+                        episodes = max(episodes, plot_episodes)
+                    except Exception as e:
+                        print(
+                            "Could not read progress.json for {0}".format(dir_name))
+                        print(type(e), e)
+    # group all with samme plot_name
+    grouped_data = {}
+    for dir_name, dir_data in data.items():
+        plot_name = dir_data["plot_name"]
+        if plot_name not in grouped_data.keys():
+            grouped_data[plot_name] = []
+        grouped_data[plot_name].append(dir_data)
+    return data, grouped_data, episodes
 
 
 def get_x_y(dir_data, metric, episodes):
@@ -214,20 +207,31 @@ def get_x_y(dir_data, metric, episodes):
     return x, y
 
 
-def plot_figure(data, metric, metric_label, scale, episodes):
+def get_x_y_std(list_dir_data, metric, episodes):
+    ys = []
+    for dir_data in list_dir_data:
+        x, y = get_x_y(dir_data, metric, episodes)
+        ys.append(y)
+    ys = np.array(ys)
+    assert len(ys) == len(list_dir_data)
+    y = np.mean(ys, axis=0)
+    std = np.std(ys, axis=0)
+    return x, y, std
+
+
+def plot_figure(data, grouped_data, metric, metric_label, scale, episodes):
     fig = plt.figure(num=metric)  # type: plt.Figure
     curves = []
-    label_to_dir_name_map = {}
-    for dir_name, dir_data in data.items():
+    for plot_name, list_dir_data in grouped_data.items():
         try:
-            x, y = get_x_y(dir_data, metric, episodes)
-            curve, = plt.plot(x, y, label=dir_data['plot_name'], color=color_map.get(
-                dir_name), linestyle=line_style_map.get(dir_name, '-'), linewidth=2, marker=marker_map.get(dir_name))
+            x, y, std = get_x_y_std(list_dir_data, metric, episodes)
+            curve, = plt.plot(x, y, label=plot_name, color=color_map.get(
+                plot_name), linestyle=line_style_map.get(plot_name, '-'), linewidth=2)
+            plt.fill_between(x, y - std, y + std, alpha=0.5, facecolor=color_map.get(plot_name))
             curves.append(curve)
-            label_to_dir_name_map[dir_data['plot_name']] = dir_data['dir_name']
         except Exception as e:
-            print("Could not plot {metric} for {dir_name}".format(
-                metric=metric, dir_name=dir_name))
+            print("Could not plot {metric} for {plot_name}".format(
+                metric=metric, plot_name=plot_name))
             print(type(e), e)
     plt.xlabel('Episode no')
     plt.ylabel(metric_label + ' (Smoothed)')
@@ -237,8 +241,7 @@ def plot_figure(data, metric, metric_label, scale, episodes):
         plt.gca().set_ylim(scale)
     plt.gca().tick_params(labelsize='large')
     handles, labels = plt.gca().get_legend_handles_labels()
-    labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: -
-                                  legend_sort_order.get(label_to_dir_name_map[t[0]], 1000)))
+    labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: -legend_sort_order.get(t[0], 1000)))
     plt.legend(handles, labels)
     plt.title(args.title)
     if args.live:
@@ -249,7 +252,7 @@ def plot_figure(data, metric, metric_label, scale, episodes):
     return fig, curves
 
 
-def update_figure(fig: plt.Figure, curves, data, metric, episodes):
+def update_figure(fig: plt.Figure, curves, data, grouped_data, metric, episodes):
     plt.figure(num=fig.number)
     for dir_data, curve in zip(data.values(), curves):
         try:
@@ -314,7 +317,7 @@ else:
         print("Could not parse scales")
         print(type(e), e)
 
-data, episodes = read_all_data(dirs, ["Episode"] + metrics)
+data, grouped_data, episodes = read_all_data(dirs, ["Episode"] + metrics)
 last_update_at = time.time()
 plt.style.use(args.style)
 
@@ -332,7 +335,7 @@ if args.live:
 figs = []
 curve_sets = []
 for metric, metric_label, scale in zip(metrics, metric_labels, scales):
-    fig, curves = plot_figure(data, metric, metric_label, scale, episodes)
+    fig, curves = plot_figure(data, grouped_data, metric, metric_label, scale, episodes)
     figs.append(fig)
     curve_sets.append(curves)
     save_figure(fig, metric)
@@ -340,8 +343,8 @@ for metric, metric_label, scale in zip(metrics, metric_labels, scales):
 while args.live:
     plt.pause(10)
     if time.time() - last_update_at >= args.update_interval:
-        data, episodes = read_all_data(dirs, ["Episode"] + metrics)
+        data, grouped_data, episodes = read_all_data(dirs, ["Episode"] + metrics)
         last_update_at = time.time()
         for fig, curves, metric in zip(figs, curve_sets, metrics):
-            update_figure(fig, curves, data, metric, episodes)
+            update_figure(fig, curves, data, grouped_data, metric, episodes)
             save_figure(fig, metric)
