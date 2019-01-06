@@ -64,7 +64,8 @@ class SimpleImageViewer(object):
             self.window.clear()
             self.window.switch_to()
             self.window.dispatch_events()
-            image.blit(0, 0, width=self.window.width, height=self.window.height)
+            image.blit(0, 0, width=self.window.width,
+                       height=self.window.height)
             self.window.flip()
 
     def close(self):
@@ -166,6 +167,69 @@ class RunningStats:
         return x / self.std
 
 
+class TfRunningStats:
+    def __init__(self, shape, name, epsilon=1e-2, reuse=False):
+        with tf.variable_scope(name, reuse=reuse):
+            self._n = tf.get_variable(
+                "n", trainable=False, initializer=tf.constant(0.0))
+            self._old_m = tf.get_variable(
+                "old_m", trainable=False, initializer=tf.zeros(shape))
+            self._new_m = tf.get_variable(
+                "new_m", trainable=False, initializer=tf.zeros(shape))
+            self._old_s = tf.get_variable(
+                "old_s", trainable=False, initializer=tf.zeros(shape))
+            self._new_s = tf.get_variable(
+                "new_s", trainable=False, initializer=tf.zeros(shape))
+            self.shape = shape
+            self.epsilon = epsilon
+            self.mean = tf.get_variable(
+                "mean", trainable=False, initializer=tf.zeros(shape))
+            self.variance = tf.get_variable(
+                "variance", trainable=False, initializer=self.epsilon * tf.ones(shape))
+            self.std = tf.get_variable(
+                "std", trainable=False, initializer=np.sqrt(self.epsilon) * tf.ones(shape))
+
+    def update(self, x, name="update_stats"):
+        with tf.variable_scope(name):
+            x = tf.cast(x, tf.float32)
+            n = self._n + 1
+            new_m = self._old_m + (x - self._old_m) / n
+            old_m = new_m
+            new_s = self._old_s + (x - self._old_m) * (x - new_m)
+            old_s = tf.case(
+                [(tf.equal(n, 1.0), lambda: tf.zeros(self.shape))],
+                default=lambda: new_s
+            )
+            mean = new_m
+            variance = tf.case(
+                [(tf.greater(n, 1), lambda: new_s / (n - 1))],
+                default=lambda: tf.zeros(shape=self.shape)
+            )
+            variance = tf.maximum(variance, self.epsilon)
+            std = tf.sqrt(variance)
+
+            return tf.group(
+                tf.assign(self._n, n),
+                tf.assign(self._old_m, old_m),
+                tf.assign(self._new_m, new_m),
+                tf.assign(self._old_s, old_s),
+                tf.assign(self._new_s, new_s),
+                tf.assign(self.mean, mean),
+                tf.assign(self.variance, variance),
+                tf.assign(self.std, std)
+            )
+
+    def normalize(self, x, name='normalize'):
+        with tf.variable_scope(name):
+            x = tf.cast(x, tf.float32)
+            return (x - self.mean) / self.std
+
+    def normalize_by_std(self, x, name='normalize_by_std'):
+        with tf.variable_scope(name):
+            x = tf.cast(x, tf.float32)
+            return x / self.std
+
+
 def normalize(a, epsilon=1e-6):
     a = np.clip(a, 0, 1)
     a = a + epsilon
@@ -182,6 +246,14 @@ def scale(a, low, high, target_low, target_high):
 def tf_scale(a, low, high, target_low, target_high, scope):
     with tf.variable_scope(scope):
         return scale(a, low, high, target_low, target_high)
+
+
+def tf_safe_softmax(inputs, scope):
+    with tf.variable_scope(scope):
+        x = inputs - tf.reduce_max(inputs, axis=1, keepdims=True)
+        exp = tf.exp(x)
+        sigma = tf.reduce_sum(exp, axis=-1, keepdims=True, name='sum')
+        return exp / sigma
 
 
 def mutated_ers(alloc, max_mutations=2, mutation_rate=0.05):
@@ -224,6 +296,13 @@ def tf_log_transform_adaptive(inputs, scope, max_inputs=1, uniform_gamma=False, 
         log_transform = tf.log(1 + gamma * inputs) / \
             (tf.log(1 + gamma * max_inputs) + epsilon)
         return log_transform
+
+
+def color_to_grayscale(img):
+    frame = np.dot(img.astype('float32'), np.array(
+        [0.299, 0.587, 0.114], 'float32'))
+    frame = np.expand_dims(frame, 2)
+    return np.concatenate([frame] * 3, axis=2)
 
 
 def tf_normalize(inputs, mean, std, scope):
@@ -341,6 +420,74 @@ def tf_deep_net(inputs, inputs_shape, inputs_dtype, scope, hidden_size, init_sca
         else:
             final = h
         return final
+
+
+def conv_net(inputs, convs, activation_fn, name):
+    with tf.variable_scope(name):
+        prev_layer = tf.cast(inputs, tf.float32)
+        for layer_id, (nfilters, kernel, stride) in enumerate(convs):
+            h = tf.layers.conv2d(prev_layer, nfilters,
+                                 kernel, stride, name="c{0}".format(layer_id))
+            h = activation_fn(h)
+            prev_layer = h
+        prev_layer = tf.layers.flatten(prev_layer, name='flatten')
+    return prev_layer
+
+
+def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name):
+    with tf.variable_scope(name):
+        prev_layer = inputs
+        for layer_id, layer in enumerate(hidden_layers):
+            h = tf.layers.dense(prev_layer, layer,
+                                activation=None, name='h{0}'.format(layer_id))
+            h = tc.layers.layer_norm(h, scale=True, center=True)
+            h = activation_fn(h)
+            prev_layer = h
+        if output_size is not None:
+            output_layer = tf.layers.dense(
+                prev_layer, output_size, name='output')
+            output_layer = output_activation(output_layer)
+        else:
+            output_layer = prev_layer
+    return output_layer
+
+
+def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name):
+    with tf.variable_scope(name):
+        conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
+        mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
+                            output_size, output_activation, "dense_net")
+        return mlp_out
+
+
+def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name):
+    with tf.variable_scope(name):
+        if need_conv_net:
+            conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
+        else:
+            conv_out = inputs
+        mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
+                            output_size, output_activation, "dense_net")
+        return mlp_out
+
+
+def tf_l2_norm(vars, exclusions=['output', 'bias'], name='l2_losses'):
+    with tf.variable_scope(name):
+        loss = 0
+        for v in vars:
+            if not any(excl in v.name for excl in exclusions):
+                loss += tf.nn.l2_loss(v)
+        return loss
+
+
+def tf_training_step(loss, vars, optimizer, l2_reg, clip_gradients, name):
+    with tf.variable_scope(name):
+        loss = loss + l2_reg * tf_l2_norm(vars)
+        grads = tf.gradients(loss, vars)
+        if clip_gradients:
+            grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
+        sgd_step = optimizer.apply_gradients(zip(grads, vars))
+        return sgd_step
 
 
 class Model:
