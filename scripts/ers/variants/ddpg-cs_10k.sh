@@ -5,10 +5,9 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--ob_dtype=float32 \
 	--nstack=3 \
 	--nn_size="[128,96]" \
-	--soft_constraints=True \
+	--soft_constraints=False \
 	--soft_constraints_lambda=1000 \
-	--softmax_actor=False \
-    --cp_optnet=True \
+	--softmax_actor=True \
 	--wolpertinger_critic_train=True \
 	--log_norm_obs_alloc=False \
 	--log_norm_action=False \
@@ -19,7 +18,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--use_param_noise=True \
 	--use_safe_noise=False \
 	--exploration_theta=1 \
-	--training_episodes=20000 \
+	--training_episodes=10000 \
 	--mb_size=128 \
 	--init_scale=3e-3 \
 	--lr=1e-3 \
@@ -30,4 +29,4 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=$2
+	--run_no_prefix=ddpg-cs

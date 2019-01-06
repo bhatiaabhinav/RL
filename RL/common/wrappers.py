@@ -61,10 +61,12 @@ class ActionSpaceNormalizeWrapper(gym.Wrapper):
 class LinearFrameStackWrapper(gym.Wrapper):
     k = 3
 
-    def __init__(self, env, k=3):
+    def __init__(self, env, k=None):
         super().__init__(env)
-        k = LinearFrameStackWrapper.k
-        self.k = k
+        if k is not None:
+            self.k = k
+        else:
+            self.k = LinearFrameStackWrapper.k
         self.frames = deque([], maxlen=k)
         space = env.observation_space  # type: gym.spaces.Box
         assert len(space.shape) == 1  # can only stack 1-D frames
@@ -118,3 +120,21 @@ class DiscreteToContinousWrapper(gym.Wrapper):
     def step(self, action):
         a = np.argmax(action)
         return super().step(a)
+
+
+class MaxEpisodeStepsWrapper(gym.Wrapper):
+    def __init__(self, env, max_steps=1000):
+        super().__init__(env)
+        self.max_steps = max_steps
+        self._current_ep_steps = 0
+
+    def reset(self):
+        self._current_ep_steps = 0
+        return self.env.reset()
+
+    def step(self, action):
+        obs, r, d, info = self.env.step(action)
+        self._current_ep_steps += 1
+        if self._current_ep_steps >= self.max_steps:
+            d = True
+        return obs, r, d, info

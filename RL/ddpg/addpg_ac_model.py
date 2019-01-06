@@ -1,16 +1,16 @@
 import os
 
+import gym
 import joblib
 import numpy as np
 import tensorflow as tf
-import gym
 from gym.spaces import Box
 
 from RL.common import logger
 from RL.reco_rl.constraints import (count_nodes_in_constraints,
                                     depth_of_constraints, tf_infeasibility,
                                     tf_nested_constrained_softmax)
-from RL.reco_rl.optnet import tf_cplex_batch_CP
+from RL.reco_rl.optnet import tf_optnet_layer
 
 from RL.common.utils import (tf_deep_net,  # tf_safe_softmax_with_non_uniform_individual_constraints,; tf_softmax_with_min_max_constraints,
                              tf_log_transform_adaptive,
@@ -186,21 +186,11 @@ class DDPG_Model_Base:
                                  for child in self.constraints['children']])
                 cmax = np.array([child['max']
                                  for child in self.constraints['children']])
-                r = self.env.metadata.get('nresources', 1)
-                logger.log(
-                    "Diving the neural network output by {0} so that it need not be in small fractions".format(r))
-                a = a / r
                 if self.soft_constraints:
-                    # a = tf.nn.tanh(a, 'tanh')
-                    # tf_scale(a, -1, 1, cmin, cmax, "scale_to_cmin_cmax")
                     self._penalizable_a = a
-                    logger.log('Actor output using optnet')
-                    a = tf_cplex_batch_CP(
-                        a, c, cmin, cmax, len(cmin), scale_inputs=False)
-                else:
-                    logger.log('Actor output using optnet')
-                    a = tf_cplex_batch_CP(
-                        a, c, cmin, cmax, len(cmin), scale_inputs=True)
+                logger.log('Actor output using optnet')
+                a = tf_optnet_layer(
+                    a, c, cmin, cmax, len(cmin), scale_inputs=True)
             else:
                 logger.log('Actor output in range -1 to 1 using tanh')
                 a = tf.nn.tanh(a, 'tanh')

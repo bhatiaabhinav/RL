@@ -21,6 +21,7 @@ class Experience:
 
 
 class ExperienceBuffer:
+    '''A circular buffer to hold experiences'''
     def __init__(self, length=1e6, size_in_bytes=None):
         self.buffer = []  # type: List[Experience]
         self.buffer_length = length
@@ -45,9 +46,32 @@ class ExperienceBuffer:
 
     def random_experiences(self, count):
         indices = np.random.randint(0, self.count, size=count)
-        # yield self.buffer[(self.next_index - 1) % self.buffer_length]
         for i in indices:
             yield self.buffer[i]
+
+    def random_rollouts(self, count, rollout_size):
+        starting_indices = np.random.randint(0, self.count - rollout_size, size=count)
+        rollouts = []
+        for i in starting_indices:
+            rollout = self.buffer[i:i + rollout_size]
+            rollouts.append(rollout)
+        return np.array(rollouts)
+
+    def random_rollouts_unzipped(self, count, rollout_size, dones_as_ints=True):
+        starting_indices = np.random.randint(0, self.count - rollout_size, size=count)
+        states, actions, rewards, dones, infos, next_states = [], [], [], [], [], []
+        for i in starting_indices:
+            rollout = self.buffer[i:i + rollout_size]
+            states.append([exp.state for exp in rollout])
+            actions.append([exp.action for exp in rollout])
+            rewards.append([exp.reward for exp in rollout])
+            dones.append([int(exp.done) for exp in rollout])
+            infos.append([exp.info for exp in rollout])
+            next_states.append([exp.next_state for exp in rollout])
+        states, actions, rewards, dones, infos, next_states = np.array(states), np.array(actions), np.array(rewards), np.array(dones), np.array(infos), np.array(next_states)
+        for item in [states, actions, rewards, dones, infos, next_states]:
+            assert list(item.shape[0:2]) == [count, rollout_size], "item: {0}, shape: {1}, expected: {2}".format(item, list(item.shape), [count, rollout_size])
+        return states, actions, rewards, dones, infos, next_states
 
     def random_states(self, count):
         experiences = list(self.random_experiences(count))

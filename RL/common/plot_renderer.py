@@ -23,7 +23,7 @@ def moving_average(arr, n=30):
 
 
 class PlotRenderer:
-    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn', auto_save=False, save_path=None):
+    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn', auto_save=False, save_path=None, default_init=False):
         if title is not None and concat_title_with_caption:
             window_caption += ': {0}'.format(title)
         self.viewer = SimpleImageViewer(
@@ -40,6 +40,8 @@ class PlotRenderer:
         self.smoothing = smoothing
         self.auto_save = auto_save
         self.save_path = save_path
+        if default_init:
+            self.plot([], [])
 
     def plot(self, *args, data=None, **kwargs):
         self.curves = self.axes.plot(*args, data=data, **kwargs)

@@ -20,7 +20,7 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--use_safe_noise=False \
 	--exploration_theta=1 \
 	--training_episodes=20000 \
-	--mb_size=128 \
+	--mb_size=64 \
 	--init_scale=3e-3 \
 	--lr=1e-3 \
 	--a_lr=1e-4 \
@@ -30,4 +30,4 @@ $GYM_PYTHON -m RL.ddpg.addpg_solver \
 	--logger_level=INFO \
 	--use_batch_norm=False \
 	--use_layer_norm=True \
-	--run_no_prefix=$2
+	--run_no_prefix=ddpg-scoptnet64

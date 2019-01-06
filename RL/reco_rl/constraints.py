@@ -411,6 +411,52 @@ def _get_lp_rows(constraints_node):
 
 def cplex_nearest_feasible(action, constraints):
     '''
+    obj = minimize sum (z_i - y_i)^2
+    subject to:
+        all constraints
+    '''
+    action = list(action)
+    k = len(action)
+    # these are my output variables
+    z_names = ["z{0}".format(i) for i in range(k)]
+
+    prob = cplex.Cplex()
+
+    # objective and bounds set:
+    prob.objective.set_sense(
+        prob.objective.sense.minimize)  # we want to minimize
+    names = z_names
+    obj = list(-2 * np.array(action).astype(float))
+    prob.variables.add(obj=obj, names=names)
+    # since Q=2I, i.e. a seperable quadratic objective, we can just give coeffs of z_i^2
+    qmat = 2 * np.ones(k)
+    prob.objective.set_quadratic(qmat)
+
+    # constraints:
+    rows, rhs, senses, names = _get_lp_rows(constraints)
+    senses = ''.join(senses)
+    prob.linear_constraints.add(
+        lin_expr=rows, senses=senses, rhs=rhs, names=names)
+
+    prob.set_results_stream(None)
+    prob.set_log_stream(None)
+
+    prob.solve()
+
+    # prob.write("nnmM.lp")
+    feasible_action = np.array(prob.solution.get_values())
+    feasible_action = np.clip(feasible_action, 0, 1)
+    return {
+        'feasible_action': feasible_action,
+        'modification': feasible_action - np.array(action),
+        'status': prob.solution.status[prob.solution.get_status()],
+        # 'L2_diff': np.sqrt(prob.solution.get_objective_value()),
+        'prob': prob
+    }
+
+
+def cplex_nearest_feasible_lp(action, constraints):
+    '''
     let d_i = |z_i - a_i|
     obj = minimize d_1 + d_2 ... d_k
     subject to:
