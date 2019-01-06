@@ -72,9 +72,12 @@ class HumanOutputFormat(OutputFormat):
         return s[:20] + '...' if len(s) > 23 else s
 
     def writeseq(self, args):
+        last = ''
         for arg in args:
             self.file.write(arg)
-        self.file.write('\n')
+            last = arg[-1]
+        if last != '\r':
+            self.file.write('\n')
         self.file.flush()
 
 
