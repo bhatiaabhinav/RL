@@ -15,7 +15,7 @@ class NoopResetEnv(gym.Wrapper):
         self.override_num_noops = None
         assert env.unwrapped.get_action_meanings()[0] == 'NOOP'
 
-    def _reset(self):
+    def reset(self):
         """ Do no-op action for a number of steps in [1, noop_max]."""
         self.env.reset()
         if self.override_num_noops is not None:
@@ -39,7 +39,7 @@ class FireResetEnv(gym.Wrapper):
         assert env.unwrapped.get_action_meanings()[1] == 'FIRE'
         assert len(env.unwrapped.get_action_meanings()) >= 3
 
-    def _reset(self):
+    def reset(self):
         self.env.reset()
         obs, _, done, _ = self.env.step(1)
         if done:
@@ -59,7 +59,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.lives = 0
         self.was_real_done = True
 
-    def _step(self, action):
+    def step(self, action):
         obs, reward, done, info = self.env.step(action)
         self.was_real_done = done
         # check current lives, make loss of life terminal,
@@ -73,7 +73,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.lives = lives
         return obs, reward, done, info
 
-    def _reset(self):
+    def reset(self):
         """Reset only when lives are exhausted.
         This way all states are still reachable even though lives are episodic,
         and the learner need not know about any of this behind-the-scenes.
@@ -95,7 +95,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         self._obs_buffer = deque(maxlen=2)
         self._skip = skip
 
-    def _step(self, action):
+    def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
         total_reward = 0.0
         done = None
@@ -109,7 +109,7 @@ class MaxAndSkipEnv(gym.Wrapper):
 
         return max_frame, total_reward, done, info
 
-    def _reset(self):
+    def reset(self):
         """Clear past frame buffer and init. to first obs. from inner env."""
         self._obs_buffer.clear()
         obs = self.env.reset()
@@ -123,14 +123,14 @@ class MaxEnv(gym.Wrapper):
         # most recent raw observations (for max pooling across time steps)
         self._obs_buffer = deque(maxlen=2)
 
-    def _step(self, action):
+    def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
         obs, reward, done, info = self.env.step(action)
         self._obs_buffer.append(obs)
         max_frame = np.max(np.stack(self._obs_buffer), axis=0)
         return max_frame, reward, done, info
 
-    def _reset(self):
+    def reset(self):
         """Clear past frame buffer and init. to first obs. from inner env."""
         self._obs_buffer.clear()
         obs = self.env.reset()
@@ -144,7 +144,7 @@ class SkipEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self._skip = skip
 
-    def _step(self, action):
+    def step(self, action):
         total_reward = 0.0
         done = None
         for _ in range(self._skip):
@@ -192,14 +192,14 @@ class FrameStack(gym.Wrapper):
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(shp[0], shp[1], k * shp[2]))
 
-    def _reset(self):
+    def reset(self):
         """Clear buffer and re-fill by duplicating the first observation."""
         ob = self.env.reset()
         for _ in range(self.k):
             self.frames.append(ob)
         return self._observation()
 
-    def _step(self, action):
+    def step(self, action):
         ob, reward, done, info = self.env.step(action)
         self.frames.append(ob)
         return self._observation(), reward, done, info
@@ -223,14 +223,14 @@ class SkipAndFrameStack(gym.Wrapper):
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(shp[0], shp[1], k))
 
-    def _reset(self):
+    def reset(self):
         """Clear buffer and re-fill by duplicating the first observation."""
         ob = self.env.reset()
         for _ in range(self.k):
             self.frames.append(ob)
         return self._observation()
 
-    def _step(self, action):
+    def step(self, action):
         total_reward = 0.0
         done = None
         for _ in range(self._skip):
@@ -306,7 +306,7 @@ class BreakoutContinuousActionWrapper(gym.Wrapper):
         super().__init__(env)
         self.action_space = spaces.Box(-1, 1, shape=[1])
 
-    def _step(self, action):
+    def step(self, action):
         if action < -1 / 3:
             action = 3
         elif action >= -1 / 3 and action <= 1 / 3:
@@ -330,4 +330,20 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True):
     env = WarpFrame(env)
     if clip_rewards:
         env = ClipRewardEnv(env)
+    return env
+
+
+def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True):
+    """Configure environment for DeepMind-style Atari."""
+    assert 'NoFrameskip' in env.spec.id  # required for DeepMind-style skip
+    if episode_life:
+        env = EpisodicLifeEnv(env)
+    env = NoopResetEnv(env, noop_max=30)
+    env = MaxAndSkipEnv(env, skip=4)
+    if 'FIRE' in env.unwrapped.get_action_meanings():
+        env = FireResetEnv(env)
+    env = WarpFrame(env)
+    if clip_rewards:
+        env = ClipRewardEnv(env)
+    env = FrameStack(env)
     return env
