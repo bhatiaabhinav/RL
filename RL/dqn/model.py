@@ -7,7 +7,7 @@ import os
 import joblib
 
 from RL.common.context import Context
-from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_scale
+from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_scale, tf_safe_softmax
 from RL.common import logger
 
 
@@ -16,6 +16,7 @@ class Brain:
         model = "model"
         states_placholder = "states"
         next_states_placeholder = "next_states"
+        actions_placeholder = "actions"
         states_rms = "states_rms"
         states_embeddings = "states_embeddings"
         Q_network = "Q"
@@ -58,6 +59,7 @@ class Brain:
             self._greedy_action = self._tf_greedy_action(self._Q)
             self._Q_input_sensitivity = self._tf_Q_input_sensitivity(self._V, self._states_placeholder)
             if not self._is_target:
+                self._actions_placeholder = self._tf_actions_placeholder()
                 self._next_states_placeholder = self._tf_states_placeholder(
                     Brain.Scopes.next_states_placeholder.value)
                 self._next_states_normalized = self._states_rms.normalize(
@@ -65,7 +67,7 @@ class Brain:
                 self._next_states_embeddings = self._tf_states_embeddings(
                     self._next_states_normalized)
                 self._transition_classification = self._tf_transition_classification(
-                    self._states_embeddings, self._next_states_embeddings)
+                    self._states_embeddings, self._actions_placeholder, self._next_states_embeddings)
 
     def _setup_training(self):
         with tf.variable_scope(Brain.Scopes.training.value):
@@ -74,8 +76,8 @@ class Brain:
             self._Q_optimizer = tf.train.AdamOptimizer(
                 self.context.learning_rate)
             self._desired_Q_placeholder = self._tf_desired_Q_placeholder()
-            self._Q_trainable_vars = self.get_trainable_vars(
-                Brain.Scopes.states_embeddings.value) + self.get_trainable_vars(Brain.Scopes.Q_network.value)
+            self._Q_trainable_vars = self.get_trainable_vars(Brain.Scopes.Q_network.value)
+            self._Q_trainable_vars += self.get_trainable_vars(Brain.Scopes.states_embeddings.value)
             self._Q_loss = self._tf_Q_loss(
                 self._Q, self._desired_Q_placeholder)
             self._Q_training_step = tf_training_step(
@@ -106,6 +108,11 @@ class Brain:
             states = tf.cast(placeholder, tf.float32)
             states = tf_scale(states, self.context.env.observation_space.low, self.context.env.observation_space.high, -1, 1, "scale_minus1_to_1")
             return states
+
+    def _tf_actions_placeholder(self):
+        with tf.variable_scope(Brain.Scopes.actions_placeholder.value):
+            placeholder = tf.placeholder(dtype=tf.float32, shape=[None] + [self.context.env.action_space.n])
+            return placeholder
 
     def _tf_states_embeddings(self, inputs):
         with tf.variable_scope(Brain.Scopes.states_embeddings.value, reuse=tf.AUTO_REUSE):
@@ -141,13 +148,14 @@ class Brain:
             scaled_abs_grads = abs_grads / tf.reduce_max(abs_grads, axis=dims_to_reduce)
             return scaled_abs_grads
 
-    def _tf_transition_classification(self, states, next_states):
-        """returns the probability of next_state coming after state. Expects flattened inputs"""
+    def _tf_transition_classification(self, states, actions, next_states):
+        """returns the probability of next_state coming after state-action pair. Expects flattened inputs"""
         with tf.variable_scope(Brain.Scopes.transition_classifier.value):
-            concated = tf.concat(values=[states, next_states], axis=-1, name="concat")
+            concated = tf.concat(values=[states, actions, next_states], axis=-1, name="concat")
             hidden_layers = [self.context.states_embedding_hidden_layers[-1]]
             classification_logits = dense_net(
                 concated, hidden_layers, self.context.activation_fn, 2, lambda x: x, 'dense_net')
+            classification_logits = tf_safe_softmax(classification_logits, 'softmax')
             return classification_logits
 
     def _tf_desired_Q_placeholder(self):
@@ -165,7 +173,8 @@ class Brain:
 
     def _tf_transition_classification_loss(self, tc, desired_tc):
         with tf.variable_scope(Brain.Scopes.tc_loss.value):
-            return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=tc, labels=desired_tc))
+            # return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=tc, labels=desired_tc))
+            return -tf.reduce_mean((desired_tc[:, 0] * tf.log(tc[:, 0]) + desired_tc[:, 1] * tf.log(tc[:, 1])))
 
     def get_Q(self, states, update_stats=False):
         return self.context.session.run(self._Q, feed_dict={
@@ -245,19 +254,21 @@ class Brain:
                 {"mb_av_V": np.mean(V), "Q_loss": loss}, self.Q_updates)
         return _, loss
 
-    def train_transitions(self, mb_states, mb_next_states, mb_desired_tc):
+    def train_transitions(self, mb_states, mb_actions, mb_next_states, mb_desired_tc):
         self.tc_updates += 1
         _, loss, tc = self.context.session.run([self._tc_training_step, self._transition_classification_loss, self._transition_classification], feed_dict={
             self._states_placeholder: mb_states,
+            self._actions_placeholder: mb_actions,
             self._next_states_placeholder: mb_next_states,
             self._desired_transition_classification: mb_desired_tc
         })
         if self.tc_updates == 1:
             self.context.summaries.setup_scalar_summaries(
-                ["mb_av_tc", "tc_loss"])
+                ["mb_av_tc", "tc_loss", "tc_accuracy"])
         if self.tc_updates % 10 == 0:
+            tc_accuracy = np.mean(np.equal(np.argmax(mb_desired_tc, axis=-1), np.argmax(tc, axis=-1)).astype(np.int))
             self.context.log_summary(
-                {"mb_av_tc": np.mean(np.argmax(tc, -1)), "tc_loss": loss}, self.tc_updates)
+                {"mb_av_tc": np.mean(np.argmax(tc, -1)), "tc_loss": loss, "tc_accuracy": tc_accuracy}, self.tc_updates)
 
     def save(self, save_path=None, suffix=''):
         if save_path is None:

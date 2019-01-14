@@ -5,21 +5,18 @@ extras:
     Observation Normalization
     DDPG style soft updated target network
     clipping, regularization etc.
+    random n-step rollouts are sampled from experience replay instead of point experiences
     RND prediction based (episodic) intrinsic reward (single value head) - a naive implementation
 
 original paper: https://www.nature.com/articles/nature14236
 
 Usage:
     python3 dqn.py [env_id]
-    #classic_control to know about more available environments.
+    # env_id can be any environment with discrete action space.
     env_id: optional. default='CartPole-v0'. refer https://gym.openai.com/envs/
 
 python dependencies:
     gym[classic_control], tensorflow, numpy
-
-What has not been implemented yet:
-    * Use of convolutional neural networks to learn atari environments from pixels.
-    * Code for saving and loading the network.
 """
 
 __author__ = "Abhinav Bhatia"
@@ -96,30 +93,17 @@ def dqn(env_id):
                         mixed = 0.8 * sensitivity + 0.2 * orig
                         viewer.imshow(mixed.astype(np.uint8))
                     else:
-                        viewer.imshow(env.render(mode='rgb_array'))
+                        '''In non atari envs, gym monitor calls rendering automatically'''
+                        # viewer.imshow(env.render(mode='rgb_array'))
 
                 # let's train:
                 if frame_id % context.train_every == 0 and frame_id > context.minimum_experience:
-                    # mb_exps = list(experience_buffer.random_experiences(
-                    #     context.minibatch_size))
-                    # mb_states = [exp.state for exp in mb_exps]
-                    # mb_actions = [exp.action for exp in mb_exps]
-                    # mb_rewards = np.asarray([exp.reward for exp in mb_exps])
-                    # mb_dones = np.asarray([int(exp.done) for exp in mb_exps])
-                    # mb_states1 = [exp.next_state for exp in mb_exps]
-                    # if not context.double_dqn:
-                    #     mb_states1_V = target_brain.get_V(mb_states1)
-                    # else:
-                    #     mb_states1_a = main_brain.get_action(mb_states1)
-                    #     mb_states1_Q = target_brain.get_Q(mb_states1)
-                    #     mb_states1_V = np.asarray(
-                    #         [mb_states1_Q[exp_id, mb_states1_a[exp_id]] for exp_id in range(context.minibatch_size)])
-                    # mb_gammas = (1 - mb_dones) * context.gamma
                     states, actions, rewards, dones, infos, states1 = experience_buffer.random_rollouts_unzipped(int(context.minibatch_size / context.nsteps), context.nsteps)
                     for step in range(context.nsteps - 1, -1, -1):
                         next_r = target_brain.get_V(states1[:, -1]) if step == context.nsteps - 1 else rewards[:, step + 1]
                         rewards[:, step] = rewards[:, step] + (1 - dones[:, step]) * context.gamma * next_r
                     mb_states = np.reshape(states, [context.minibatch_size] + list(env.observation_space.shape))
+                    # mb_states1 = np.reshape(states1, [context.minibatch_size] + list(env.observation_space.shape))
                     mb_rewards = rewards.flatten()
                     mb_actions = actions.flatten()
                     mb_desired_Q = main_brain.get_Q(mb_states)
@@ -140,9 +124,11 @@ def dqn(env_id):
                     # mb_desired_tc = np.zeros([context.minibatch_size, 2])
                     # mb_desired_tc[0:half_mb_size, 0] = 1
                     # mb_desired_tc[half_mb_size:context.minibatch_size, 1] = 1
-                    # mb_next_states = mb_next_states_random + mb_states1[0:half_mb_size]
-                    # assert len(mb_states) == len(mb_next_states)
-                    # main_brain.train_transitions(mb_states, mb_next_states, mb_desired_tc)
+                    # mb_next_states = mb_next_states_random + list(mb_states1[0:half_mb_size])
+                    # mb_actions_onehot = np.zeros([context.minibatch_size, context.env.action_space.n])
+                    # mb_actions_onehot[np.arange(context.minibatch_size), mb_actions] = 1
+                    # assert len(mb_states) == len(mb_next_states), "{0}, {1}".format(len(mb_states), len(mb_next_states))
+                    # main_brain.train_transitions(mb_states, mb_actions_onehot, mb_next_states, mb_desired_tc)
                     # if context.rnd_mode:
                     #     _, rnd_mse = rnd_system.train(mb_states1)
 
