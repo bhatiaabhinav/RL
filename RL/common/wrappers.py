@@ -4,6 +4,7 @@ import gym
 import numpy as np
 
 from RL.common import logger
+from RL.common.utils import ImagePygletWingow
 
 
 class DummyWrapper(gym.Wrapper):
@@ -138,3 +139,36 @@ class MaxEpisodeStepsWrapper(gym.Wrapper):
         if self._current_ep_steps >= self.max_steps:
             d = True
         return obs, r, d, info
+
+
+class RenderWrapper(gym.Wrapper):
+    def __init__(self, env, render_interval=1, vsync=True, caption="Renderer"):
+        super().__init__(env)
+        self.window = None
+        try:
+            self.window = ImagePygletWingow(caption=caption, vsync=vsync)
+        except Exception as e:
+            logger.error(
+                "RenderWrapper: Could not create window. Reason = {0}".format(str(e)))
+        self.ep_id = 0
+        self.render_interval = render_interval
+
+    def draw(self, obs):
+        if self.window and self.ep_id % self.render_interval == 0:
+            self.window.imshow(self.env.render('rgb_array'))
+
+    def reset(self):
+        obs = self.env.reset()
+        self.draw(obs)
+        return obs
+
+    def step(self, action):
+        obs_next, r, d, info = self.env.step(action)
+        self.draw(obs_next)
+        if d:
+            self.ep_id += 1
+        return obs_next, r, d, info
+
+    def close(self):
+        if self.window:
+            self.window.close()

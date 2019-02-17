@@ -57,17 +57,18 @@ class Brain:
             self._Q = self._tf_Q(self._states_embeddings)
             self._V = self._tf_V(self._Q)
             self._greedy_action = self._tf_greedy_action(self._Q)
-            self._Q_input_sensitivity = self._tf_Q_input_sensitivity(self._V, self._states_placeholder)
             if not self._is_target:
+                self._Q_input_sensitivity = self._tf_Q_input_sensitivity(
+                    self._V, self._states_placeholder)
                 self._actions_placeholder = self._tf_actions_placeholder()
-                self._next_states_placeholder = self._tf_states_placeholder(
-                    Brain.Scopes.next_states_placeholder.value)
-                self._next_states_normalized = self._states_rms.normalize(
-                    self._next_states_placeholder)
-                self._next_states_embeddings = self._tf_states_embeddings(
-                    self._next_states_normalized)
-                self._transition_classification = self._tf_transition_classification(
-                    self._states_embeddings, self._actions_placeholder, self._next_states_embeddings)
+                # self._next_states_placeholder = self._tf_states_placeholder(
+                #     Brain.Scopes.next_states_placeholder.value)
+                # self._next_states_normalized = self._states_rms.normalize(
+                #     self._next_states_placeholder)
+                # self._next_states_embeddings = self._tf_states_embeddings(
+                #     self._next_states_normalized)
+                # self._transition_classification = self._tf_transition_classification(
+                #     self._states_embeddings, self._actions_placeholder, self._next_states_embeddings)
 
     def _setup_training(self):
         with tf.variable_scope(Brain.Scopes.training.value):
@@ -76,20 +77,22 @@ class Brain:
             self._Q_optimizer = tf.train.AdamOptimizer(
                 self.context.learning_rate)
             self._desired_Q_placeholder = self._tf_desired_Q_placeholder()
-            self._Q_trainable_vars = self.get_trainable_vars(Brain.Scopes.Q_network.value)
-            self._Q_trainable_vars += self.get_trainable_vars(Brain.Scopes.states_embeddings.value)
-            self._Q_loss = self._tf_Q_loss(
+            self._Q_trainable_vars = self.get_trainable_vars(
+                Brain.Scopes.Q_network.value)
+            self._Q_trainable_vars += self.get_trainable_vars(
+                Brain.Scopes.states_embeddings.value)
+            self._Q_loss, self._Q_mpe = self._tf_Q_loss(
                 self._Q, self._desired_Q_placeholder)
             self._Q_training_step = tf_training_step(
                 self._Q_loss, self._Q_trainable_vars, self._Q_optimizer, self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.Q_training_step.value)
-            self._tc_optimizer = tf.train.AdamOptimizer(self.context.learning_rate)
-            self._desired_transition_classification = self._tf_desired_transition_classification_placeholder()
-            self._transition_classification_loss = self._tf_transition_classification_loss(
-                self._transition_classification, self._desired_transition_classification)
-            self._tc_trainable_vars = self.get_trainable_vars(
-                Brain.Scopes.states_embeddings.value) + self.get_trainable_vars(Brain.Scopes.transition_classifier.value)
-            self._tc_training_step = tf_training_step(self._transition_classification_loss, self._tc_trainable_vars,
-                                                      self._tc_optimizer, self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.tc_training_step.value)
+            # self._tc_optimizer = tf.train.AdamOptimizer(self.context.learning_rate)
+            # self._desired_transition_classification = self._tf_desired_transition_classification_placeholder()
+            # self._transition_classification_loss = self._tf_transition_classification_loss(
+            #     self._transition_classification, self._desired_transition_classification)
+            # self._tc_trainable_vars = self.get_trainable_vars(
+            #     Brain.Scopes.states_embeddings.value) + self.get_trainable_vars(Brain.Scopes.transition_classifier.value)
+            # self._tc_training_step = tf_training_step(self._transition_classification_loss, self._tc_trainable_vars,
+            #                                           self._tc_optimizer, self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.tc_training_step.value)
 
     def _setup_saving_loading_ops(self):
         with tf.variable_scope('saving_loading_ops'):
@@ -104,14 +107,17 @@ class Brain:
 
     def _tf_states_placeholder(self, name):
         with tf.variable_scope(name):
-            placeholder = tf.placeholder(dtype=self.context.env.observation_space.dtype, shape=[None] + list(self.context.env.observation_space.shape))
+            placeholder = tf.placeholder(dtype=self.context.env.observation_space.dtype, shape=[
+                                         None] + list(self.context.env.observation_space.shape))
             states = tf.cast(placeholder, tf.float32)
-            states = tf_scale(states, self.context.env.observation_space.low, self.context.env.observation_space.high, -1, 1, "scale_minus1_to_1")
+            states = tf_scale(states, self.context.env.observation_space.low,
+                              self.context.env.observation_space.high, -1, 1, "scale_minus1_to_1")
             return states
 
     def _tf_actions_placeholder(self):
         with tf.variable_scope(Brain.Scopes.actions_placeholder.value):
-            placeholder = tf.placeholder(dtype=tf.float32, shape=[None] + [self.context.env.action_space.n])
+            placeholder = tf.placeholder(dtype=tf.float32, shape=[
+                                         None] + [self.context.env.action_space.n])
             return placeholder
 
     def _tf_states_embeddings(self, inputs):
@@ -122,12 +128,12 @@ class Brain:
         with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=tf.AUTO_REUSE):
             if not self.context.dueling_dqn:
                 Q = dense_net(inputs, self.context.Q_hidden_layers, self.context.activation_fn,
-                              self.context.env.action_space.n, lambda x: x, 'dense_net')
+                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
             else:
                 A_dueling = dense_net(inputs, self.context.Q_hidden_layers, self.context.activation_fn,
-                                      self.context.env.action_space.n, lambda x: x, 'A_dueling')
-                V_dueling = dense_net(inputs, self.context.Q_hidden_layers, self.context.activation_fn,
-                                      self.context.env.action_space.n, lambda x: x, 'V_dueling')
+                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
+                V_dueling = dense_net(inputs, self.context.Q_hidden_layers,
+                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
                 Q = V_dueling + A_dueling - \
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
             return Q
@@ -145,17 +151,20 @@ class Brain:
             grads = tf.gradients(V, [inputs])[0]
             abs_grads = tf.abs(grads)
             dims_to_reduce = list(range(len(grads.get_shape().as_list())))[1:]
-            scaled_abs_grads = abs_grads / tf.reduce_max(abs_grads, axis=dims_to_reduce)
+            scaled_abs_grads = abs_grads / \
+                tf.reduce_max(abs_grads, axis=dims_to_reduce)
             return scaled_abs_grads
 
     def _tf_transition_classification(self, states, actions, next_states):
         """returns the probability of next_state coming after state-action pair. Expects flattened inputs"""
         with tf.variable_scope(Brain.Scopes.transition_classifier.value):
-            concated = tf.concat(values=[states, actions, next_states], axis=-1, name="concat")
+            concated = tf.concat(
+                values=[states, actions, next_states], axis=-1, name="concat")
             hidden_layers = [self.context.states_embedding_hidden_layers[-1]]
             classification_logits = dense_net(
                 concated, hidden_layers, self.context.activation_fn, 2, lambda x: x, 'dense_net')
-            classification_logits = tf_safe_softmax(classification_logits, 'softmax')
+            classification_logits = tf_safe_softmax(
+                classification_logits, 'softmax')
             return classification_logits
 
     def _tf_desired_Q_placeholder(self):
@@ -164,9 +173,12 @@ class Brain:
     def _tf_Q_loss(self, Q, desired_Q):
         with tf.variable_scope(Brain.Scopes.Q_loss.value):
             error = Q - desired_Q
-            squared_error = tf.square(error)
-            mse = tf.reduce_mean(squared_error)
-            return mse
+            percentage_error = 100 * tf.abs(error / (desired_Q + 1e-3))
+            # squared_error = tf.square(error)
+            # mse = tf.reduce_mean(squared_error, name="mse")
+            mpe = tf.reduce_mean(percentage_error, name="mpe")
+            huber_loss = tf.losses.huber_loss(desired_Q, Q, scope="huber_loss")
+            return huber_loss, mpe
 
     def _tf_desired_transition_classification_placeholder(self):
         return tf.placeholder(dtype='float32', shape=[None, 2], name=Brain.Scopes.desired_transition_classification.value)
@@ -242,17 +254,20 @@ class Brain:
 
     def train(self, mb_states, mb_desiredQ):
         self.Q_updates += 1
-        _, loss, V = self.context.session.run([self._Q_training_step, self._Q_loss, self._V], feed_dict={
+        _, loss, mpe, V = self.context.session.run([self._Q_training_step, self._Q_loss, self._Q_mpe, self._V], feed_dict={
             self._states_placeholder: mb_states,
             self._desired_Q_placeholder: mb_desiredQ
         })
+        mb_av_V_summary_name = "{0}/mb_av_V".format(self.name)
+        Q_loss_summary_name = "{0}/Q_loss".format(self.name)
+        Q_mpe_summary_name = "{0}/Q_mpe".format(self.name)
         if self.Q_updates == 1:
             self.context.summaries.setup_scalar_summaries(
-                ["mb_av_V", "Q_loss"])
+                [mb_av_V_summary_name, Q_loss_summary_name, Q_mpe_summary_name])
         if self.Q_updates % 10 == 0:
-            self.context.log_summary(
-                {"mb_av_V": np.mean(V), "Q_loss": loss}, self.Q_updates)
-        return _, loss
+            self.context.log_summary({mb_av_V_summary_name: np.mean(
+                V), Q_loss_summary_name: loss, Q_mpe_summary_name: mpe}, self.context.frame_id)
+        return _, loss, mpe
 
     def train_transitions(self, mb_states, mb_actions, mb_next_states, mb_desired_tc):
         self.tc_updates += 1
@@ -266,18 +281,22 @@ class Brain:
             self.context.summaries.setup_scalar_summaries(
                 ["mb_av_tc", "tc_loss", "tc_accuracy"])
         if self.tc_updates % 10 == 0:
-            tc_accuracy = np.mean(np.equal(np.argmax(mb_desired_tc, axis=-1), np.argmax(tc, axis=-1)).astype(np.int))
+            tc_accuracy = np.mean(np.equal(
+                np.argmax(mb_desired_tc, axis=-1), np.argmax(tc, axis=-1)).astype(np.int))
             self.context.log_summary(
                 {"mb_av_tc": np.mean(np.argmax(tc, -1)), "tc_loss": loss, "tc_accuracy": tc_accuracy}, self.tc_updates)
 
-    def save(self, save_path=None, suffix=''):
+    def save(self, save_path=None, filename='model'):
         if save_path is None:
-            save_path = os.path.join(logger.get_dir(), "saved_models", "model{0}".format(suffix))
+            save_path = os.path.join(
+                logger.get_dir(), "saved_models", filename)
         params = self.context.session.run(self.get_vars(''))
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         joblib.dump(params, save_path)
 
-    def load(self, load_path):
+    def load(self, load_path=None, filename='model'):
+        if load_path is None:
+            load_path = os.path.join(self.context.load_model_dir, filename)
         params = joblib.load(load_path)
         feed_dict = {}
         for p, p_placeholder in zip(params, self._load_placeholders):

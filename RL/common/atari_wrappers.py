@@ -98,11 +98,16 @@ class MaxAndSkipEnv(gym.Wrapper):
     def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
         total_reward = 0.0
+        last_info = {}
         done = None
         for _ in range(self._skip):
             obs, reward, done, info = self.env.step(action)
             self._obs_buffer.append(obs)
             total_reward += reward
+            for key in info.keys():
+                if 'reward' in key.lower():
+                    info[key] = info[key] + last_info.get(key, 0)
+            last_info = info
             if done:
                 break
         max_frame = np.max(np.stack(self._obs_buffer), axis=0)
@@ -146,10 +151,15 @@ class SkipEnv(gym.Wrapper):
 
     def step(self, action):
         total_reward = 0.0
+        last_info = {}
         done = None
         for _ in range(self._skip):
             obs, reward, done, info = self.env.step(action)
             total_reward += reward
+            for key in info.keys():
+                if 'reward' in key.lower():
+                    info[key] = info[key] + last_info.get(key, 0)
+            last_info = info
             if done:
                 break
 
@@ -179,12 +189,13 @@ class WarpFrame(gym.ObservationWrapper):
 
 
 class FrameStack(gym.Wrapper):
-    k = 3
+    default_k = 3
 
-    def __init__(self, env, k=3):
+    def __init__(self, env, k=None):
         """Buffer observations and stack across channels (last axis)."""
         gym.Wrapper.__init__(self, env)
-        k = FrameStack.k
+        if k is None:
+            k = FrameStack.default_k
         self.k = k
         self.frames = deque([], maxlen=k)
         shp = env.observation_space.shape
@@ -232,10 +243,15 @@ class SkipAndFrameStack(gym.Wrapper):
 
     def step(self, action):
         total_reward = 0.0
+        last_info = {}
         done = None
         for _ in range(self._skip):
             ob, reward, done, info = self.env.step(action)
             total_reward += reward
+            for key in info.keys():
+                if 'reward' in key.lower():
+                    info[key] = info[key] + last_info.get(key, 0)
+            last_info = info
             self.frames.append(ob)
             if done:
                 break
@@ -291,12 +307,17 @@ class NoopFrameskipWrapper(gym.Wrapper):
     def step(self, action):
         if self._is_noop(action):
             R = 0
+            last_info = {}
             for i in range(self.FRAMESKIP_ON_NOOP):
-                ob, r, d, _ = super().step(action)
+                ob, r, d, info = super().step(action)
                 R += r
+                for key in info.keys():
+                    if 'reward' in key.lower():
+                        info[key] = info[key] + last_info.get(key, 0)
+                    last_info = info
                 if d:
                     break
-            return ob, R, d, _
+            return ob, R, d, info
         else:
             return super().step(action)
 
@@ -333,7 +354,7 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True):
     return env
 
 
-def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True):
+def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True, framestack_k=4):
     """Configure environment for DeepMind-style Atari."""
     assert 'NoFrameskip' in env.spec.id  # required for DeepMind-style skip
     if episode_life:
@@ -345,5 +366,8 @@ def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True):
     env = WarpFrame(env)
     if clip_rewards:
         env = ClipRewardEnv(env)
-    env = FrameStack(env)
+    env = FrameStack(env, k=framestack_k)
     return env
+
+
+wrap_atari = wrap_deepmind_with_framestack

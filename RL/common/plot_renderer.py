@@ -72,6 +72,9 @@ class PlotRenderer:
             int(height), int(width), 3)
         self.viewer.imshow(image)
 
+    def dispatch_events(self):
+        self.viewer.dispatch_events()
+
     def update_and_render(self, list_data, autoscale=True):
         self.update(list_data, autoscale=autoscale)
         self.render()

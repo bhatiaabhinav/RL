@@ -17,6 +17,33 @@ from keras.optimizers import Adam
 from RL.common import logger
 
 
+class ImagePygletWingow(pyglet.window.Window):
+    def __init__(self, width=None, height=None, caption=None, resizable=True, style=None, fullscreen=False, visible=True, vsync=True, display=None, screen=None, config=None, context=None, mode=None):
+        super().__init__(width=width, height=height, caption=caption, resizable=resizable, style=style, fullscreen=fullscreen, visible=visible, vsync=vsync, display=display, screen=screen, config=config, context=context, mode=mode)
+        self.image = None
+        if height is None or width is None:
+            self.auto_resize = True
+
+    def on_draw(self):
+        if self.image is not None:
+            self.image.blit(0, 0, width=self.width, height=self.height)
+
+    def set_image(self, arr):
+        assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
+        self.image = pyglet.image.ImageData(arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+        if self.auto_resize:
+            self.set_size(arr.shape[1], arr.shape[0])
+            self.auto_resize = False
+
+    def imshow(self, arr):
+        self.set_image(arr)
+        self.clear()
+        self.switch_to()
+        self.dispatch_events()
+        self.dispatch_event('on_draw')
+        self.flip()
+
+
 class SimpleImageViewer(object):
     def __init__(self, display=None, width=None, height=None, caption='SimpleImageViewer', resizable=True, vsync=False):
         self.window = None
@@ -28,10 +55,99 @@ class SimpleImageViewer(object):
         self.vsync = vsync
         self.caption = caption
         self._failed = False
+        self._image = None
+
+    def _initialize(self, height=None, width=None):
+        if self.height is None:
+            self.height = height
+        if self.width is None:
+            self.width = width
+        try:
+            self.window = pyglet.window.Window(
+                width=self.width, height=self.height, display=self.display, vsync=self.vsync, resizable=self.resizable, caption=self.caption)
+        except Exception as e:
+            self.window = None
+            self._failed = True
+            logger.warn("Could not create window: {0}".format(e))
+
+        if not self._failed:
+            self.isopen = True
+
+            @self.window.event
+            def on_resize(width, height):
+                self.width = width
+                self.height = height
+
+            @self.window.event
+            def on_close():
+                self.isopen = False
+
+            @self.window.event
+            def on_draw():
+                self.window.clear()
+                if self._image is not None:
+                    self._image.blit(
+                        0, 0, width=self.window.width, height=self.window.height)
 
     def imshow(self, arr):
+        if not self._failed:
+            self.set_image(arr)
+            self.window.clear()
+            self.window.switch_to()
+            self.window.dispatch_events()  
+            self.window.dispatch_event('on_draw')
+            self.window.flip()
+
+    def set_image(self, arr):
         if self.window is None and not self._failed:
-            height, width, _channels = arr.shape
+            self._initialize(arr.shape[0], arr.shape[1])
+        if not self._failed:
+            assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
+            self._image = pyglet.image.ImageData(arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+
+    def close(self):
+        if self.isopen:
+            self.window.close()
+            self.isopen = False
+
+    def dispatch_events(self):
+        if self.isopen:
+            self.window.dispatch_events()
+
+    def __del__(self):
+        self.close()
+
+
+class GridImageViewer(object):
+    def __init__(self, n_vertical, n_horizontal, display=None, width=None, height=None, caption='GridImageViewer', resizable=True, vsync=False):
+        self.window = None
+        self.isopen = False
+        self.display = display
+        self.width = width
+        self.height = height
+        self.resizable = resizable
+        self.vsync = vsync
+        self.caption = caption
+        self._failed = False
+        self.n_vertical = n_vertical
+        self.n_horizontal = n_horizontal
+        self.padding = 10
+        self._images = []
+
+    @property
+    def img_height(self):
+        return max(int((self.height - self.padding * (self.n_vertical + 1)) / self.n_vertical), 10)
+
+    @property
+    def img_width(self):
+        return max(int((self.width - self.padding * (self.n_horizontal + 1)) / self.n_horizontal), 10)
+
+    def imshow(self, arr_list):
+        if self.window is None and not self._failed:
+            height = int(np.mean([arr.shape[0] for arr in arr_list])
+                         * self.n_vertical + self.padding * (self.n_vertical + 1))
+            width = int(np.mean([arr.shape[1] for arr in arr_list]) *
+                        self.n_horizontal + self.padding * (self.n_horizontal + 1))
             if self.height is None:
                 self.height = height
             if self.width is None:
@@ -56,22 +172,43 @@ class SimpleImageViewer(object):
                 def on_close():
                     self.isopen = False
 
+                @self.window.event
+                def on_draw():
+                    pyglet.gl.glClearColor(1, 1, 1, 1)
+                    self.window.clear()
+                    top = self.padding
+                    left = self.padding
+                    count = 0
+                    for image in self._images:
+                        image.blit(left, self.height - top - self.img_height,
+                                   width=self.img_width, height=self.img_height)
+                        left += self.img_width + self.padding
+                        count += 1
+                        if count % self.n_horizontal == 0:
+                            top += (self.img_height + self.padding)
+                            left = self.padding
+                self._on_draw = on_draw
+
         if not self._failed:
-            assert len(
-                arr.shape) == 3, "You passed in an image with the wrong number shape"
-            image = pyglet.image.ImageData(
-                arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
-            self.window.clear()
+            self._images.clear()
+            for arr in arr_list:
+                assert arr.shape[2] == 3, "You passed in an image with the wrong number shape"
+                image = pyglet.image.ImageData(
+                    arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+                self._images.append(image)
             self.window.switch_to()
-            self.window.dispatch_events()
-            image.blit(0, 0, width=self.window.width,
-                       height=self.window.height)
+            self._on_draw()
             self.window.flip()
+            self.window.dispatch_events()
 
     def close(self):
         if self.isopen:
             self.window.close()
             self.isopen = False
+
+    def dispatch_events(self):
+        if self.isopen:
+            self.window.dispatch_events()
 
     def __del__(self):
         self.close()
@@ -299,8 +436,7 @@ def tf_log_transform_adaptive(inputs, scope, max_inputs=1, uniform_gamma=False, 
 
 
 def color_to_grayscale(img):
-    frame = np.dot(img.astype('float32'), np.array(
-        [0.299, 0.587, 0.114], 'float32'))
+    frame = np.dot(img.astype('float32'), np.array([0.299, 0.587, 0.114], 'float32'))
     frame = np.expand_dims(frame, 2)
     return np.concatenate([frame] * 3, axis=2)
 
@@ -434,7 +570,7 @@ def conv_net(inputs, convs, activation_fn, name):
     return prev_layer
 
 
-def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name):
+def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
     with tf.variable_scope(name):
         prev_layer = inputs
         for layer_id, layer in enumerate(hidden_layers):
@@ -445,29 +581,29 @@ def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activati
             prev_layer = h
         if output_size is not None:
             output_layer = tf.layers.dense(
-                prev_layer, output_size, name='output')
+                prev_layer, output_size, name='output', kernel_initializer=output_kernel_initializer)
             output_layer = output_activation(output_layer)
         else:
             output_layer = prev_layer
     return output_layer
 
 
-def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name):
+def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
     with tf.variable_scope(name):
         conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
-                            output_size, output_activation, "dense_net")
+                            output_size, output_activation, "dense_net", output_kernel_initializer=output_kernel_initializer)
         return mlp_out
 
 
-def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name):
+def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
     with tf.variable_scope(name):
         if need_conv_net:
             conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         else:
             conv_out = inputs
         mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
-                            output_size, output_activation, "dense_net")
+                            output_size, output_activation, "dense_net", output_kernel_initializer=output_kernel_initializer)
         return mlp_out
 
 
