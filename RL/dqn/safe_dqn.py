@@ -57,10 +57,7 @@ class SafetyDQNAgent(DQNAgent):
         assert safety_reward <= 0, "{0} should not be positive".format(
             self.reward_key)
         self.context.frame_reward = safety_reward
-        actual_gamma = self.context.gamma
-        self.context.gamma = 1
         super().post_act()
-        self.context.gamma = actual_gamma
         self.context.frame_reward = actual_reward
 
 
@@ -106,15 +103,6 @@ class SafetyAwareDQNAgent(DQNAgent):
         else:
             action = self.context.env.action_space.sample()
         return action
-
-    def post_act(self):
-        if any([self.context.frame_info[safety_agent.reward_key] < 0 for safety_agent in self.safety_agents]):
-            reward = self.context.frame_reward
-            self.context.frame_reward = 0
-            super().post_act()
-            self.context.frame_reward = reward
-        else:
-            super().post_act()
 
     def post_episode(self):
         super().post_episode()
