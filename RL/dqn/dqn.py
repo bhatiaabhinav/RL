@@ -32,7 +32,7 @@ from PIL import Image
 from RL.common import logger
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.context import (Agent, Context, PygletLoop, RLRunner,
-                               SeedingAgent)
+                               SeedingAgent, SimpleRenderingAgent)
 from RL.common.experience_buffer import Experience, ExperienceBuffer
 from RL.common.summaries import Summaries
 from RL.common.utils import (ImagePygletWingow, SimpleImageViewer,
@@ -325,14 +325,14 @@ if __name__ == '__main__':
 
     runner.register_agent(SeedingAgent(context, "seeder"))
     # runner.register_agent(RandomPlayAgent(context, "RandomPlayer"))
-    # runner.register_agent(SimpleRenderingAgent(context, "Video"))
+    if context.render:
+        runner.register_agent(SimpleRenderingAgent(context, "Video"))
     if context.eval_mode:
         runner.register_agent(DQNEvalAgent(context, "DQN"))
     else:
         runner.register_agent(DQNAgent(context, "DQN"))
-    if context.need_conv_net:
+    if context.sensitivity_visualizer:
         runner.register_agent(DQNSensitivityVisualizerAgent(context, "Sensitivity"))
-        pass
     runner.register_agent(PygletLoop(context, "PygletLoop"))
     runner.run()
 

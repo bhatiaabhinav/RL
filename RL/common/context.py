@@ -33,8 +33,8 @@ class Context:
     train_every = 4  # one sgd step every this many frames
     # target network updated every this many frames
     target_network_update_interval = 1000
-    minibatch_size = 128  # 1/4th of this will be used for atari games
-    nsteps = 4  # n-step TD learning
+    minibatch_size = 32
+    nsteps = 1  # n-step TD learning
     learning_rate = 1e-4
     tau = 0.001  # ddpg style target network (soft) update step size
     # whether to use DDPG style target network update, or use original DQN style
@@ -52,10 +52,14 @@ class Context:
     rnd_layers = [128]  # architecture of the rnd_predictor network
     rnd_learning_rate = 1e-4  # learning rate for the rnd_predictor network
     render = False
+    sensitivity_visualizer = False
     render_interval = 1
     render_vsync = False
     pyglet_fps = -1
     safety_threshold = -0.1
+    penalty_safe_dqn_multiplier = 10
+    penalty_safe_dqn_mode = False
+    safety_stream_names = ['Safety']
     load_model_dir = None
     framestack_k = 4
     clip_rewards = True

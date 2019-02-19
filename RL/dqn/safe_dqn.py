@@ -32,7 +32,8 @@ import numpy as np
 
 from RL.common import logger
 from RL.common.atari_wrappers import wrap_atari
-from RL.common.context import (Agent, Context, PygletLoop, RLRunner, SeedingAgent, SimpleRenderingAgent)
+from RL.common.context import (
+    Agent, Context, PygletLoop, RLRunner, SeedingAgent, SimpleRenderingAgent)
 from RL.common.utils import ImagePygletWingow
 from RL.common.wrappers import MaxEpisodeStepsWrapper
 from RL.dqn.dqn import DQNAgent, DQNSensitivityVisualizerAgent  # noqa: F401
@@ -123,6 +124,20 @@ class SafetyAwareDQNAgent(DQNAgent):
                 [av_feasible_actions_count_summary_name])
         self.context.log_summary(
             {av_feasible_actions_count_summary_name: self.av_feasible_actions_count}, self.context.episode_id)
+
+
+class PenaltyBasedSafeDQN(DQNAgent):
+    def __init__(self, context: Context, name):
+        super().__init__(context, name)
+        self.safety_reward_keys = [name + "_reward" for name in context.safety_stream_names]
+
+    def post_act(self):
+        total_safety_reward = self.context.penalty_safe_dqn_multiplier * \
+            sum([self.context.frame_info.get(k, 0)
+                 for k in self.safety_reward_keys])
+        self.context.frame_reward += total_safety_reward
+        super().post_act()
+        self.context.frame_reward -= total_safety_reward
 
 
 class LunarLanderSafetyWrapper(gym.Wrapper):
@@ -239,45 +254,44 @@ class SafetyStatsRecorderAgent(Agent):
     def start(self):
         assert len(self.runner.get_agent_by_type(SafetyStatsRecorderAgent)
                    ) == 1, "There cannot be more than 1 SafetyStatsRecorder in a runner"
-        self.safety_agents = self.runner.get_agent_by_type(
-            SafetyDQNAgent)  # type: List[SafetyDQNAgent]
+        self.safety_agent_names = self.context.safety_stream_names
+        self.safety_keys = [name + "_reward" for name in self.safety_agent_names]
         self.safety_records = {}
         self.safety_records_exploit = {}
         self.safety_R = {}
-        for safety_agent in self.safety_agents:
-            self.safety_records[safety_agent.name] = []
-            self.safety_records_exploit[safety_agent.name] = []
-            self.safety_R[safety_agent.name] = 0
+        for name in self.safety_agent_names:
+            self.safety_records[name] = []
+            self.safety_records_exploit[name] = []
+            self.safety_R[name] = 0
 
     def pre_episode(self):
-        for safety_agent in self.safety_agents:
-            self.safety_R[safety_agent.name] = 0
+        for name in self.safety_agent_names:
+            self.safety_R[name] = 0
 
     def post_act(self):
-        for safety_agent in self.safety_agents:
-            self.safety_R[safety_agent.name] += self.context.frame_info.get(
-                safety_agent.reward_key)
+        for name, key in zip(self.safety_agent_names, self.safety_keys):
+            self.safety_R[name] += self.context.frame_info.get(key, 0)
 
     def post_episode(self):
         summary = {}
-        for safety_agent in self.safety_agents:
-            self.safety_records[safety_agent.name].append(
-                self.safety_R[safety_agent.name])
-            R_summary_name = safety_agent.name + "_R"
-            R_exploit_summary_name = safety_agent.name + "_R_exploit"
-            cumulative_R_summary_name = safety_agent.name + "_cumulative_R"
-            cumulative_R_exploit_summary_name = safety_agent.name + "_cumulative_R_exploit"
+        for name, key in zip(self.safety_agent_names, self.safety_keys):
+            self.safety_records[name].append(self.safety_R[name])
+            R_summary_name = name + "_R"
+            R_exploit_summary_name = name + "_R_exploit"
+            cumulative_R_summary_name = name + "_cumulative_R"
+            cumulative_R_exploit_summary_name = name + "_cumulative_R_exploit"
             if self.context.episode_id == 0:
                 self.context.summaries.setup_scalar_summaries(
                     [R_summary_name, R_exploit_summary_name, cumulative_R_summary_name, cumulative_R_exploit_summary_name])
-            summary[R_summary_name] = self.safety_R[safety_agent.name]
+            summary[R_summary_name] = self.safety_R[name]
             summary[cumulative_R_summary_name] = sum(
-                self.safety_records[safety_agent.name])
+                self.safety_records[name])
             if self.context.should_eval_episode():
-                self.safety_records_exploit[safety_agent.name].append(self.safety_R[safety_agent.name])
-                summary[R_exploit_summary_name] = self.safety_R[safety_agent.name]
+                self.safety_records_exploit[name].append(
+                    self.safety_R[name])
+                summary[R_exploit_summary_name] = self.safety_R[name]
                 summary[cumulative_R_exploit_summary_name] = sum(
-                    self.safety_records_exploit[safety_agent.name])
+                    self.safety_records_exploit[name])
         self.context.log_summary(summary, self.context.episode_id)
 
 
@@ -286,8 +300,10 @@ class MyContext(Context):
         if self.need_conv_net:
             if 'Pong' in self.env_id:
                 env = PongSafetyWrapper(env)
-            env = wrap_atari(env, episode_life=self.episode_life, clip_rewards=self.clip_rewards, framestack_k=self.framestack_k)
+            env = wrap_atari(env, episode_life=self.episode_life,
+                             clip_rewards=self.clip_rewards, framestack_k=self.framestack_k)
         if 'Lunar' in self.env_id:
+            env = LunarLanderSafetyWrapper(env)
             env = MaxEpisodeStepsWrapper(env, 600)
         return env
 
@@ -298,14 +314,18 @@ if __name__ == '__main__':
 
     runner.register_agent(SeedingAgent(context, "seeder"))
     # runner.register_agent(RandomPlayAgent(context, "RandomPlayer"))
-    runner.register_agent(SimpleRenderingAgent(context, "Video"))
+    if context.render:
+        runner.register_agent(SimpleRenderingAgent(context, "Video"))
     # runner.register_agent(DQNAgent(context, "DQN"))
-    runner.register_agent(SafetyDQNAgent(context, "Safety"))
     runner.register_agent(SafetyStatsRecorderAgent(context, "SafetyStats"))
-    runner.register_agent(SafetyAwareDQNAgent(context, "DQN"))
-    if context.need_conv_net:
-        # runner.register_agent(DQNSensitivityVisualizerAgent(context, "Sensitivity"))
-        pass
+    if not context.penalty_safe_dqn_mode:
+        for name in context.safety_stream_names:
+            runner.register_agent(SafetyDQNAgent(context, name))
+        runner.register_agent(SafetyAwareDQNAgent(context, "DQN"))
+    else:
+        runner.register_agent(PenaltyBasedSafeDQN(context, "DQN"))
+    if context.sensitivity_visualizer:
+        runner.register_agent(DQNSensitivityVisualizerAgent(context, "Sensitivity"))
     runner.register_agent(PygletLoop(context, "PygletLoop"))
     runner.run()
 
