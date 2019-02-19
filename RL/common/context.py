@@ -94,7 +94,9 @@ class Context:
         self.env = self.wrappers(self.env)
         self.env = gym.wrappers.Monitor(self.env, os.path.join(self.logdir, 'monitor'), force=True, video_callable=self._video_schedule)
         assert self.minibatch_size % self.nsteps == 0, "mb size should be a multiple of nsteps"
-        self.session = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.session = tf.Session(config=config)
 
     def _read_args(self):
         for arg in sys.argv[1:]:
