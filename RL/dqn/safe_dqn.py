@@ -44,7 +44,7 @@ class SafetyDQNAgent(DQNAgent):
         super().__init__(context, name)
         self.reward_key = "{0}_reward".format(name)
         self.safety_threshold = context.safety_threshold
-        logger.log("safety thres is", str(self.safety_threshold))
+        logger.log("safety thres is ", str(self.safety_threshold))
 
     def act(self):
         return None

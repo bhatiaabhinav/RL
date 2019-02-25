@@ -37,8 +37,8 @@ class ExperienceBuffer:
             if self.size_in_bytes is not None:
                 self.buffer_length = self.size_in_bytes / sys.getsizeof(exp)
             self.buffer_length = int(self.buffer_length)
-            logger.log('Initializing experience buffer of length {0}'.format(
-                self.buffer_length))
+            logger.log('Initializing experience buffer of length {0}. Est. memory: {1} MB'.format(
+                self.buffer_length, self.buffer_length * sys.getsizeof(exp) // (1024 * 1024)))
             self.buffer = [None] * self.buffer_length
         self.buffer[self.next_index] = exp
         self.next_index = (self.next_index + 1) % self.buffer_length
@@ -48,6 +48,11 @@ class ExperienceBuffer:
         indices = np.random.randint(0, self.count, size=count)
         for i in indices:
             yield self.buffer[i]
+
+    def random_experiences_unzipped(self, count):
+        exps = self.random_experiences(count)
+        list_of_exp_tuples = [(exp.state, exp.action, exp.reward, exp.done, exp.info, exp.next_state) for exp in exps]
+        return tuple(np.asarray(tup) for tup in zip(*list_of_exp_tuples))
 
     def random_rollouts(self, count, rollout_size):
         starting_indices = np.random.randint(0, self.count - rollout_size, size=count)
@@ -65,7 +70,7 @@ class ExperienceBuffer:
             states.append([exp.state for exp in rollout])
             actions.append([exp.action for exp in rollout])
             rewards.append([exp.reward for exp in rollout])
-            dones.append([int(exp.done) for exp in rollout])
+            dones.append([int(exp.done) if dones_as_ints else exp.done for exp in rollout])
             infos.append([exp.info for exp in rollout])
             next_states.append([exp.next_state for exp in rollout])
         states, actions, rewards, dones, infos, next_states = np.array(states), np.array(actions), np.array(rewards), np.array(dones), np.array(infos), np.array(next_states)

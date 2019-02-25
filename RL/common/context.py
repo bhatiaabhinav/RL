@@ -16,7 +16,7 @@ from RL.common.summaries import Summaries
 
 class Context:
     seed = 0
-    gamma = 0.999
+    gamma = 0.99
     default_env_id = 'CartPole-v0'
     default_experiment_name = 'untitled'
     eval_mode = False
@@ -24,21 +24,19 @@ class Context:
     states_embedding_hidden_layers = []
     Q_hidden_layers = [512]  # hidden layers
     n_episodes = 10000
-    experience_buffer_length = 50000
+    experience_buffer_length = 100000
     experience_buffer_megabytes = None
     minimum_experience = 1000  # in frames, before learning can begin
-    final_epsilon = 0.1  # exploration rate in epislon-greedy action selection
-    eval_epsilon = 0.05
+    final_epsilon = 0.01  # exploration rate in epislon-greedy action selection
+    eval_epsilon = 0.001
     epsilon_anneal_over = 50000
     train_every = 4  # one sgd step every this many frames
     # target network updated every this many frames
-    target_network_update_interval = 1000
+    target_network_update_every = 4
+    target_network_update_tau = 0.001  # ddpg style target network (soft) update step size
     minibatch_size = 32
-    nsteps = 1  # n-step TD learning
-    learning_rate = 1e-4
-    tau = 0.001  # ddpg style target network (soft) update step size
-    # whether to use DDPG style target network update, or use original DQN style
-    ddpg_target_network_update_mode = True
+    nsteps = 3  # n-step TD learning
+    learning_rate = 6.25e-5
     double_dqn = False
     dueling_dqn = False
     l2_reg = 0
@@ -93,7 +91,6 @@ class Context:
         self.env = gym.make(self.env_id)
         self.env = self.wrappers(self.env)
         self.env = gym.wrappers.Monitor(self.env, os.path.join(self.logdir, 'monitor'), force=True, video_callable=self._video_schedule)
-        assert self.minibatch_size % self.nsteps == 0, "mb size should be a multiple of nsteps"
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.session = tf.Session(config=config)

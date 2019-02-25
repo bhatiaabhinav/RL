@@ -225,12 +225,12 @@ class Brain:
             other_brain_vars = other_brain.get_vars(scope)
             assert len(my_vars) == len(
                 other_brain_vars), "Something is wrong! Both brains should have same number of vars in scope {0}".format(scope)
-            assert len(
-                my_vars) > 0, "There are no variables in scope {0}!".format(scope)
+            if len(my_vars) == 0:
+                logger.warn("Warning: There are no variables in scope {0}!".format(scope))
             copy_ops = []
             for my_var, other_var in zip(my_vars, other_brain_vars):
-                copy_op = tf.assign(other_var, my_var * self.context.tau + (
-                    1 - self.context.tau) * other_var) if soft_copy else tf.assign(other_var, my_var)
+                copy_op = tf.assign(other_var, my_var * self.context.target_network_update_tau + (
+                    1 - self.context.target_network_update_tau) * other_var) if soft_copy else tf.assign(other_var, my_var)
                 copy_ops.append(copy_op)
             return copy_ops
 
@@ -239,7 +239,7 @@ class Brain:
             Q_copy = self._tf_scope_copy_to(
                 other_brain, Brain.Scopes.Q_network.value, "Q_params_copy", soft_copy=soft_copy)
             embeddings_copy = self._tf_scope_copy_to(
-                other_brain, Brain.Scopes.states_embeddings.value, "states_embs_params_copy", soft_copy=False)
+                other_brain, Brain.Scopes.states_embeddings.value, "states_embs_params_copy", soft_copy=soft_copy)
             rms_copy = self._tf_scope_copy_to(
                 other_brain, Brain.Scopes.states_rms.value, "states_rms_vars_copy", soft_copy=False)
             all_ops = Q_copy + embeddings_copy + rms_copy
