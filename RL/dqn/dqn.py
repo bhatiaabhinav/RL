@@ -117,9 +117,9 @@ class DQNAgent(Agent):
 
     def update_target_network(self, soft_update):
         if soft_update:
-            context.session.run(self.target_brain_soft_update_op)
+            self.context.session.run(self.target_brain_soft_update_op)
         else:
-            context.session.run(self.target_brain_update_op)
+            self.context.session.run(self.target_brain_update_op)
 
     def post_act(self):
         c = self.context
