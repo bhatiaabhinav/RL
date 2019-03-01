@@ -36,7 +36,7 @@ from RL.common.context import (
     Agent, Context, PygletLoop, RLRunner, SeedingAgent, SimpleRenderingAgent)
 from RL.common.utils import ImagePygletWingow
 from RL.common.wrappers import MaxEpisodeStepsWrapper
-from RL.dqn.dqn import DQNAgent, DQNSensitivityVisualizerAgent  # noqa: F401
+from RL.dqn.dqn import DQNAgent, DQNSensitivityVisualizerAgent, QPlotAgent  # noqa: F401
 
 
 class SafetyDQNAgent(DQNAgent):
@@ -44,10 +44,31 @@ class SafetyDQNAgent(DQNAgent):
         super().__init__(context, name)
         self.reward_key = "{0}_reward".format(name)
         self.safety_threshold = context.safety_threshold
+        self.min_threshold = self.safety_threshold
+        self.max_threshold = 0.01
         logger.log("safety thres is ", str(self.safety_threshold))
 
     def act(self):
         return None
+
+    def get_feasibility_mask_and_Q(self, states, target_brain=False):
+        if target_brain:
+            Q = self.target_brain.get_Q(states)
+        else:
+            Q = self.main_brain.get_Q(states)
+        t = self.threshold_logic(Q)
+        if not target_brain:
+            self.safety_threshold = t
+        mask = (Q >= t).astype(np.int)
+        return mask, Q
+
+    def threshold_logic(self, Q):
+        max_Q = np.max(Q, axis=-1, keepdims=True)
+        min_Q = np.min(Q, axis=-1, keepdims=True)
+        range_Q = max_Q - min_Q
+        thres = max_Q - 0.5 * range_Q
+        thres = np.clip(thres, self.min_threshold, self.max_threshold)
+        return thres
 
     def post_act(self):
         actual_reward = self.context.frame_reward
@@ -70,36 +91,59 @@ class SafetyAwareDQNAgent(DQNAgent):
         logger.info("Safety Aware DQN found {0} safety agents".format(
             len(self.safety_agents)))
 
+    def _reset_feasible_actions_count_stats(self):
+        self.av_feasible_actions_count = 0
+        self.nonrandom_actions_count = 0
+
+    def _update_feasible_actions_count_stats(self, feasible_action_count):
+        self.av_feasible_actions_count = (self.av_feasible_actions_count * self.nonrandom_actions_count + feasible_action_count) / (self.nonrandom_actions_count + 1)
+        self.nonrandom_actions_count += 1
+
     def pre_episode(self):
         super().pre_episode()
-        self.av_feasible_actions_count = 0
-        self.exploit_actions_count = 0
+        self._reset_feasible_actions_count_stats()
+
+    def get_combined_safety_feasibility_mask_and_Q(self, states, target_brain=False):
+        combined_mask, combined_Q = 1, 0
+        for safety_agent in self.safety_agents:
+            mask, Q = safety_agent.get_feasibility_mask_and_Q(states, target_brain=target_brain)
+            combined_mask = combined_mask * mask
+            combined_Q = combined_Q + Q
+        return combined_mask, combined_Q
+
+    def get_feasibleGreedy_action_and_Q(self, states, feasibility_mask, safety_Q, target_brain=False):
+        '''feasibleGreedy policy is defined as: Choose the action with highest Q value among feasible action. If there is no feasible action, choose the safest action'''
+
+        if target_brain:
+            Q = self.target_brain.get_Q(states)
+        else:
+            Q = self.main_brain.get_Q(states)
+        feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
+        # additive mask should have -inf for infeasible actions and 0 for feasible:
+        additive_mask = (1 - feasibility_mask) * -1e6
+        Q_masked = Q + additive_mask
+        action_feasible = np.argmax(Q_masked, axis=-1)
+        action_safest = np.argmax(safety_Q, axis=-1)
+        action = feasible_available_mask * action_feasible + (1 - feasible_available_mask) * action_safest
+        return action, Q
+
+    def get_target_network_V(self, states):
+        all_rows = np.arange(self.context.minibatch_size)
+        feasibility_mask, safety_Q = self.get_combined_safety_feasibility_mask_and_Q(states, target_brain=True)
+        feasibleGreedy_action, Q = self.get_feasibleGreedy_action_and_Q(states, feasibility_mask, safety_Q, target_brain=True)
+        if self.context.double_dqn:
+            feasibleGreedy_action_main, Q_main = self.get_feasibleGreedy_action_and_Q(states, feasibility_mask, safety_Q, target_brain=False)
+            return Q[all_rows, feasibleGreedy_action_main]
+        else:
+            return Q[all_rows, feasibleGreedy_action]
 
     def act(self):
         r = np.random.random()
         if r > self.context.epsilon:
-            feasible_action_ids = set(range(self.context.env.action_space.n))
-            combined_safety_Q_values = np.zeros(
-                [self.context.env.action_space.n])
-            for safety_agent in self.safety_agents:
-                safety_Q_values = safety_agent.main_brain.get_Q(
-                    [self.context.frame_obs])[0]
-                combined_safety_Q_values = combined_safety_Q_values + safety_Q_values
-                feasible_action_ids_ = set(tup[0] for tup in filter(
-                    lambda tup: tup[1] >= safety_agent.safety_threshold, zip(feasible_action_ids, safety_Q_values)))
-                feasible_action_ids.intersection_update(feasible_action_ids_)
-            if len(feasible_action_ids) > 0:
-                objective_Q_values = self.main_brain.get_Q(
-                    [self.context.frame_obs])[0]
-                objective_Q_values_modified = [objective_Q_values[i] if i in feasible_action_ids else -float(
-                    "inf") for i in range(self.context.env.action_space.n)]
-                action = np.argmax(objective_Q_values_modified)
-            else:
-                # no feasible action. Let's take the safest one
-                action = np.argmax(combined_safety_Q_values)
-            self.av_feasible_actions_count = (self.av_feasible_actions_count * self.exploit_actions_count + len(
-                feasible_action_ids)) / (self.exploit_actions_count + 1)
-            self.exploit_actions_count += 1
+            feasibility_mask, safety_Q = self.get_combined_safety_feasibility_mask_and_Q([self.context.frame_obs])
+            feasibleGreedy_action, Q = self.get_feasibleGreedy_action_and_Q([self.context.frame_obs], feasibility_mask, safety_Q)
+            action = feasibleGreedy_action[0]
+            self._update_feasible_actions_count_stats(np.sum(feasibility_mask[0]))
         else:
             action = self.context.env.action_space.sample()
         return action
@@ -129,6 +173,10 @@ class PenaltyBasedSafeDQN(DQNAgent):
 
 
 class LunarLanderSafetyWrapper(gym.Wrapper):
+    def __init__(self, env, no_crash_penalty_main_stream=False):
+        super().__init__(env)
+        self.no_crash_penalty_main_stream = no_crash_penalty_main_stream
+
     def reset(self):
         return self.env.reset()
 
@@ -137,6 +185,8 @@ class LunarLanderSafetyWrapper(gym.Wrapper):
         if done and reward == -100:
             '''it is a crash'''
             info["Safety_reward"] = -1 + info.get('Safety_reward', 0)
+            if self.no_crash_penalty_main_stream:
+                reward = 0
         else:
             info["Safety_reward"] = 0 + info.get('Safety_reward', 0)
         return obs_next, reward, done, info
@@ -283,16 +333,22 @@ class SafetyStatsRecorderAgent(Agent):
         self.context.log_summary(summary, self.context.episode_id)
 
 
+class SafetyQPlotAgent(QPlotAgent):
+    def update(self):
+        self.reference_mark = getattr(self.dqn_agent, "safety_threshold")
+        super().update()
+
+
 class MyContext(Context):
     def wrappers(self, env):
         if self.need_conv_net:
             if 'Pong' in self.env_id:
                 env = PongSafetyWrapper(env)
-            env = wrap_atari(env, episode_life=self.episode_life,
-                             clip_rewards=self.clip_rewards, framestack_k=self.framestack_k)
+            env = wrap_atari(env, episode_life=self.atari_episode_life,
+                             clip_rewards=self.atari_clip_rewards, framestack_k=self.atari_framestack_k)
         if 'Lunar' in self.env_id:
-            env = LunarLanderSafetyWrapper(env)
             env = MaxEpisodeStepsWrapper(env, 600)
+            env = LunarLanderSafetyWrapper(env, no_crash_penalty_main_stream=self.lunar_no_crash_penalty_main_stream)
         return env
 
 
@@ -306,14 +362,21 @@ if __name__ == '__main__':
         runner.register_agent(SimpleRenderingAgent(context, "Video"))
     # runner.register_agent(DQNAgent(context, "DQN"))
     runner.register_agent(SafetyStatsRecorderAgent(context, "SafetyStats"))
+    dqn_agent = None  # type: DQNAgent
     if not context.penalty_safe_dqn_mode:
         for name in context.safety_stream_names:
-            runner.register_agent(SafetyDQNAgent(context, name))
-        runner.register_agent(SafetyAwareDQNAgent(context, "DQN"))
+            safety_dqn_agent = runner.register_agent(SafetyDQNAgent(context, name))
+            if context.plot_Q:
+                q_plot_agent = runner.register_agent(SafetyQPlotAgent(context, safety_dqn_agent.name + "_Q"))  # type: SafetyQPlotAgent
+                q_plot_agent.dqn_agent = safety_dqn_agent
+        dqn_agent = runner.register_agent(SafetyAwareDQNAgent(context, "DQN"))
     else:
-        runner.register_agent(PenaltyBasedSafeDQN(context, "DQN"))
+        dqn_agent = runner.register_agent(PenaltyBasedSafeDQN(context, "DQN"))
+    q_plot_agent = runner.register_agent(QPlotAgent(context, dqn_agent.name + "_Q"))  # type: QPlotAgent
+    q_plot_agent.dqn_agent = dqn_agent
     if context.sensitivity_visualizer:
-        runner.register_agent(DQNSensitivityVisualizerAgent(context, "Sensitivity"))
+        sens_vis_agent = runner.register_agent(DQNSensitivityVisualizerAgent(context, "Sensitivity"))  # type: DQNSensitivityVisualizerAgent
+        sens_vis_agent.dqn_agent = dqn_agent
     runner.register_agent(PygletLoop(context, "PygletLoop"))
     runner.run()
 

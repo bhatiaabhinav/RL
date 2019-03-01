@@ -26,7 +26,7 @@ class Context:
     n_episodes = 10000
     experience_buffer_length = 100000
     experience_buffer_megabytes = None
-    minimum_experience = 1000  # in frames, before learning can begin
+    minimum_experience = 20000  # in frames, before learning can begin
     final_epsilon = 0.01  # exploration rate in epislon-greedy action selection
     eval_epsilon = 0.001
     epsilon_anneal_over = 50000
@@ -51,6 +51,7 @@ class Context:
     rnd_learning_rate = 1e-4  # learning rate for the rnd_predictor network
     render = False
     sensitivity_visualizer = False
+    plot_Q = False
     render_interval = 1
     render_vsync = False
     pyglet_fps = -1
@@ -59,9 +60,10 @@ class Context:
     penalty_safe_dqn_mode = False
     safety_stream_names = ['Safety']
     load_model_dir = None
-    framestack_k = 4
-    clip_rewards = True
-    episode_life = True
+    atari_framestack_k = 4
+    atari_clip_rewards = True
+    atari_episode_life = True
+    lunar_no_crash_penalty_main_stream = False
 
     def __init__(self):
         self.env_id = self.default_env_id

@@ -24,6 +24,7 @@ __email__ = "bhatiaabhinav93@gmail.com"
 __license__ = "gpl"
 __version__ = "1.0.0"
 
+import os
 import gym  # noqa: F401
 import numpy as np
 from PIL import Image
@@ -33,6 +34,7 @@ from RL.common.atari_wrappers import wrap_atari
 from RL.common.context import (Agent, Context, PygletLoop, RLRunner,
                                SeedingAgent, SimpleRenderingAgent)
 from RL.common.experience_buffer import Experience, ExperienceBuffer
+from RL.common.plot_renderer import PlotRenderer
 from RL.common.utils import ImagePygletWingow
 from RL.common.wrappers import MaxEpisodeStepsWrapper
 from RL.dqn.model import Brain
@@ -166,7 +168,7 @@ class DQNSensitivityVisualizerAgent(Agent):
                 dqn_agents) > 0, "There is no DQNAgent registered to this runner"
             self.dqn_agent = dqn_agents[0]
         try:
-            if self.context.render:
+            if self.context.sensitivity_visualizer:
                 self.window = ImagePygletWingow(
                     caption=self.context.env_id + ":" + self.context.experiment_name + ":" + self.name, vsync=self.context.render_vsync)
         except Exception as e:
@@ -175,7 +177,7 @@ class DQNSensitivityVisualizerAgent(Agent):
 
     def render(self):
         context = self.context
-        if self.window and context.need_conv_net and context.render and context.episode_id % context.render_interval == 0:
+        if self.window and context.need_conv_net and context.sensitivity_visualizer and context.episode_id % context.render_interval == 0:
             frame = self.dqn_agent.main_brain.get_Q_input_sensitivity([context.frame_obs])[0]
             channels = frame.shape[2]
             frame = np.dot(frame.astype('float32'), np.ones([channels]) / channels)
@@ -200,11 +202,56 @@ class DQNSensitivityVisualizerAgent(Agent):
             self.window.close()
 
 
+class QPlotAgent(Agent):
+    def __init__(self, context: Context, name):
+        super().__init__(context, name)
+        self.dqn_agent = None  # type: DQNAgent
+        self.plot = None  # type: ImagePygletWindow
+        self.reference_mark = 0
+
+    def start(self):
+        if self.dqn_agent is None:
+            dqn_agents = self.runner.get_agent_by_type(DQNAgent)
+            assert len(
+                dqn_agents) > 0, "There is no DQNAgent registered to this runner"
+            self.dqn_agent = dqn_agents[0]
+        try:
+            if self.context.plot_Q:
+                self.plot = PlotRenderer(title="Q Values per Step for " + self.dqn_agent.name, xlabel="Step", ylabel="Q", legend=['Q_max', 'Reference', 'Q_min'], window_caption=self.context.env_id + ":" + self.context.experiment_name, auto_dispatch_on_render=False)
+                self.plot.plot([], [], 'g', [], [], 'k--', [], [], 'r')
+        except Exception as e:
+            logger.error(
+                "{0}: Could not create plot window. Reason = {1}".format(self.name, str(e)))
+
+    def update(self):
+        if self.plot and self.context.plot_Q and self.context.episode_id % self.context.render_interval == 0:
+            Q_vals = self.dqn_agent.main_brain.get_Q([self.context.frame_obs])[0]
+            self.plot.append_and_render([np.max(Q_vals), self.reference_mark, np.min(Q_vals)])
+
+    def pre_episode(self):
+        if self.plot:
+            self.plot.clear()
+            self.plot.axes.set_title("Q Values per Step for " + self.dqn_agent.name + " : Episode " + str(self.context.episode_id))
+            self.update()
+
+    def post_episode(self):
+        if self.plot and self.context.plot_Q and self.context.episode_id % self.context.render_interval == 0:
+            filename = os.path.join(logger.get_dir(), "Plots", self.name, "Q_Episode_{0}.png".format(self.context.episode_id))
+            self.plot.save(path=filename)
+
+    def post_act(self):
+        self.update()
+
+    def close(self):
+        if self.plot:
+            self.plot.close()
+
+
 class MyContext(Context):
     def wrappers(self, env):
         if self.need_conv_net:
-            env = wrap_atari(env, episode_life=self.episode_life,
-                             clip_rewards=self.clip_rewards, framestack_k=self.framestack_k)
+            env = wrap_atari(env, episode_life=self.atari_episode_life,
+                             clip_rewards=self.atari_clip_rewards, framestack_k=self.atari_framestack_k)
         if 'Lunar' in self.env_id:
             env = MaxEpisodeStepsWrapper(env, 600)
         return env
@@ -223,6 +270,8 @@ if __name__ == '__main__':
     if context.sensitivity_visualizer:
         runner.register_agent(
             DQNSensitivityVisualizerAgent(context, "Sensitivity"))
+    if context.plot_Q:
+        runner.register_agent(QPlotAgent(context, "DQN_Q"))
     runner.register_agent(PygletLoop(context, "PygletLoop"))
     runner.run()
 
