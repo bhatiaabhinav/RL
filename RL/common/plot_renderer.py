@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Axes, Figure  # noqa: F401
 
-from RL.common.utils import SimpleImageViewer
+from RL.common.utils import ImagePygletWingow
 
 
 def moving_average(arr, n=30):
@@ -23,16 +23,18 @@ def moving_average(arr, n=30):
 
 
 class PlotRenderer:
-    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn', auto_save=False, save_path=None, default_init=False):
+    def __init__(self, window_width=None, window_height=None, title=None, xlabel=None, ylabel=None, legend=[], window_caption='Plot', concat_title_with_caption=True, smoothing=None, style='seaborn', auto_save=False, save_path=None, default_init=False, auto_dispatch_on_render=True):
         if title is not None and concat_title_with_caption:
             window_caption += ': {0}'.format(title)
-        self.viewer = SimpleImageViewer(
-            width=window_width, height=window_height, caption=window_caption)
+        # self.viewer = SimpleImageViewer(
+        #     width=window_width, height=window_height, caption=window_caption)
+        self.viewer = ImagePygletWingow(width=window_width, height=window_height, caption=window_caption, vsync=False)
         with plt.style.context(style):
             self.fig = Figure()
             self.axes = self.fig.gca()  # type: Axes
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
+        self.legend = legend
         self.axes.set_title(title)
         self.curves = None
         self.canvas = FigureCanvas(self.fig)
@@ -40,11 +42,13 @@ class PlotRenderer:
         self.smoothing = smoothing
         self.auto_save = auto_save
         self.save_path = save_path
+        self.auto_dispatch_on_render = auto_dispatch_on_render
         if default_init:
             self.plot([], [])
 
     def plot(self, *args, data=None, **kwargs):
         self.curves = self.axes.plot(*args, data=data, **kwargs)
+        self.axes.legend(self.legend)
         for curve in self.curves:
             xs, ys = curve.get_data()
             self.data.append([list(xs), list(ys)])
@@ -70,7 +74,10 @@ class PlotRenderer:
         width, height = self.fig.get_size_inches() * self.fig.get_dpi()
         image = np.fromstring(self.canvas.tostring_rgb(), dtype='uint8').reshape(
             int(height), int(width), 3)
-        self.viewer.imshow(image)
+        if self.auto_dispatch_on_render:
+            self.viewer.imshow(image)
+        else:
+            self.viewer.set_image(image)
 
     def dispatch_events(self):
         self.viewer.dispatch_events()

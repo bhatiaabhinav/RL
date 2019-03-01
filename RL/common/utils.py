@@ -37,7 +37,7 @@ class ImagePygletWingow(pyglet.window.Window):
 
     def imshow(self, arr):
         self.set_image(arr)
-        self.clear()
+        # self.clear()
         self.switch_to()
         self.dispatch_events()
         self.dispatch_event('on_draw')
@@ -94,7 +94,7 @@ class SimpleImageViewer(object):
             self.set_image(arr)
             self.window.clear()
             self.window.switch_to()
-            self.window.dispatch_events()  
+            self.window.dispatch_events()
             self.window.dispatch_event('on_draw')
             self.window.flip()
 
