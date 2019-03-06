@@ -1,7 +1,7 @@
 import sys
 
 import numpy as np
-
+from typing import List
 from RL.common import logger
 
 
@@ -18,6 +18,14 @@ class Experience:
         return sys.getsizeof(self.state) + sys.getsizeof(self.action) + \
             sys.getsizeof(self.reward) + sys.getsizeof(self.done) + \
             sys.getsizeof(self.info) + sys.getsizeof(self.next_state)
+
+
+class MultiRewardStreamExperience(Experience):
+    '''The only difference from 'Experience' is that 'reward' attribute is expected to be a numpy list'''
+    def __init__(self, state, action, reward, done, info, next_state):
+        assert(hasattr(reward, "__len__")), 'reward attribute should be a list'
+        reward = np.asarray(reward)
+        super().__init__(state, action, reward, done, info, next_state)
 
 
 class ExperienceBuffer:

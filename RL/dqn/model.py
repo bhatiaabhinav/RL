@@ -21,28 +21,38 @@ class Brain:
         states_embeddings = "states_embeddings"
         Q_network = "Q"
         Q_input_sensitivity = "Q_input_sensitivity"
-        transition_classifier = "transition_classifier"
+        # transition_classifier = "transition_classifier"
         update_states_rms = "update_states_rms"
         training = "training"
         desired_Q = "desired_Q"
         Q_loss = "Q_loss"
-        Q_training_step = "Q_training_step"
-        desired_transition_classification = "desired_transition_classification"
-        tc_loss = "tc_loss"
-        tc_training_step = "tc_training_step"
+        combined_loss = "combined_loss"
+        training_step = "training_step"
+        # desired_transition_classification = "desired_transition_classification"
+        # tc_loss = "tc_loss"
+        # tc_training_step = "tc_training_step"
         summaries = "summaries"
 
-    def __init__(self, context: Context, name, is_target):
+    def __init__(self, context: Context, name, is_target, head_names):
         self.context = context
         self.name = name
         self._is_target = is_target
         self.Q_updates = 0
         self.tc_updates = 0
+        self.num_heads = len(head_names)
+        self.head_names = head_names
         with tf.variable_scope(self.name):
             self._setup_model()
             if not self._is_target:
                 self._setup_training()
                 self._setup_saving_loading_ops()
+
+    def get_head_id(self, head_name):
+        if not hasattr(self, "_head_names_to_id_map"):
+            self._head_names_to_id_map = {}
+            for head_id in range(self.num_heads):
+                self._head_names_to_id_map[self.head_names[head_id]] = head_id
+        return self._head_names_to_id_map[head_name]
 
     def _setup_model(self):
         with tf.variable_scope(Brain.Scopes.model.value):
@@ -54,13 +64,17 @@ class Brain:
                 self._states_placeholder)
             self._states_embeddings = self._tf_states_embeddings(
                 self._states_normalized)
-            self._Q = self._tf_Q(self._states_embeddings)
-            self._V = self._tf_V(self._Q)
-            self._greedy_action = self._tf_greedy_action(self._Q)
-            if not self._is_target:
-                self._Q_input_sensitivity = self._tf_Q_input_sensitivity(
-                    self._V, self._states_placeholder)
-                self._actions_placeholder = self._tf_actions_placeholder()
+            self._Qs, self._Vs = [], []
+            self._Q_input_sensitivities = []
+            for head_id in range(self.num_heads):
+                with tf.variable_scope(self.head_names[head_id]):
+                    self._Qs.append(self._tf_Q(self._states_embeddings))
+                    self._Vs.append(self._tf_V(self._Qs[head_id]))
+                    if not self._is_target:
+                        self._Q_input_sensitivities.append(self._tf_Q_input_sensitivity(
+                            self._Vs[head_id], self._states_placeholder))
+            # if not self._is_target:
+            #     self._actions_placeholder = self._tf_actions_placeholder()
                 # self._next_states_placeholder = self._tf_states_placeholder(
                 #     Brain.Scopes.next_states_placeholder.value)
                 # self._next_states_normalized = self._states_rms.normalize(
@@ -72,19 +86,37 @@ class Brain:
 
     def _setup_training(self):
         with tf.variable_scope(Brain.Scopes.training.value):
+            # For updating states running stats:
             self._update_states_rms = self._states_rms.update(
                 self._states_placeholder[0], Brain.Scopes.update_states_rms.value)
-            self._Q_optimizer = tf.train.AdamOptimizer(
+            # Individual losses:
+            self._desired_Q_placeholders, self._Q_losses, self._Q_mpes = [], [], []
+            for head_id in range(self.num_heads):
+                with tf.variable_scope(self.head_names[head_id]):
+                    self._desired_Q_placeholders.append(
+                        self._tf_desired_Q_placeholder())
+                    Q_loss, mpe = self._tf_Q_loss(
+                        self._Qs[head_id], self._desired_Q_placeholders[head_id])
+                    self._Q_losses.append(Q_loss)
+                    self._Q_mpes.append(mpe)
+            # combined loss:
+            self._combined_loss = 0
+            with tf.variable_scope(Brain.Scopes.combined_loss.value):
+                self._loss_coeffs_placeholder = tf.placeholder(
+                    dtype=tf.float32, shape=[self.num_heads], name="loss_coeffs")
+                for head_id in range(self.num_heads):
+                    self._combined_loss += self._loss_coeffs_placeholder[head_id] * \
+                        self._Q_losses[head_id]
+            # optimize:
+            self._optimizer = tf.train.AdamOptimizer(
                 self.context.learning_rate)
-            self._desired_Q_placeholder = self._tf_desired_Q_placeholder()
-            self._Q_trainable_vars = self.get_trainable_vars(
-                Brain.Scopes.Q_network.value)
-            self._Q_trainable_vars += self.get_trainable_vars(
+            self._trainable_vars = self.get_trainable_vars(
                 Brain.Scopes.states_embeddings.value)
-            self._Q_loss, self._Q_mpe = self._tf_Q_loss(
-                self._Q, self._desired_Q_placeholder)
-            self._Q_training_step = tf_training_step(
-                self._Q_loss, self._Q_trainable_vars, self._Q_optimizer, self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.Q_training_step.value)
+            for head_id in range(self.num_heads):
+                self._trainable_vars += self.get_trainable_vars(
+                    self.head_names[head_id] + "/" + Brain.Scopes.Q_network.value)
+            self._training_step = tf_training_step(self._combined_loss, self._trainable_vars, self._optimizer,
+                                                   self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.training_step.value)
             # self._tc_optimizer = tf.train.AdamOptimizer(self.context.learning_rate)
             # self._desired_transition_classification = self._tf_desired_transition_classification_placeholder()
             # self._transition_classification_loss = self._tf_transition_classification_loss(
@@ -138,13 +170,9 @@ class Brain:
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
             return Q
 
-    def _tf_greedy_action(self, Q):
-        with tf.variable_scope('greedy_action'):
-            return tf.argmax(Q, axis=1)
-
     def _tf_V(self, Q):
         with tf.variable_scope('V'):
-            return tf.reduce_max(Q, axis=1)
+            return tf.reduce_max(Q, axis=-1)
 
     def _tf_Q_input_sensitivity(self, V, inputs):
         with tf.variable_scope(Brain.Scopes.Q_input_sensitivity.value):
@@ -188,23 +216,34 @@ class Brain:
             # return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=tc, labels=desired_tc))
             return -tf.reduce_mean((desired_tc[:, 0] * tf.log(tc[:, 0]) + desired_tc[:, 1] * tf.log(tc[:, 1])))
 
-    def get_Q(self, states, update_stats=False):
-        return self.context.session.run(self._Q, feed_dict={
+    def _get_fetches(self, fetch_list, head_names):
+        if head_names is None:
+            return fetch_list
+        else:
+            fetches = []
+            for head_name in head_names:
+                fetches.append(fetch_list[self.get_head_id(head_name)])
+            return fetches
+
+    def get_Q(self, states, head_names=None):
+        return self.context.session.run(self._get_fetches(self._Qs, head_names), feed_dict={
             self._states_placeholder: states
         })
 
-    def get_V(self, states):
-        return self.context.session.run(self._V, feed_dict={
+    def get_maxQ(self, states, head_names=None):
+        return self.context.session.run(self._get_fetches(self._Vs, head_names), feed_dict={
             self._states_placeholder: states
         })
 
-    def get_action(self, states):
-        return self.context.session.run(self._greedy_action, feed_dict={
-            self._states_placeholder: states
-        })
+    def get_argmax_Q(self, states, head_names=None):
+        Qs = self.get_Q(states, head_names=head_names)
+        argmax_Qs = []
+        for Q in Qs:
+            argmax_Qs.append(np.argmax(Q, axis=-1))
+        return argmax_Qs
 
-    def get_Q_input_sensitivity(self, states):
-        sensitivities = self.context.session.run(self._Q_input_sensitivity, feed_dict={
+    def get_Q_input_sensitivity(self, states, head_names=None):
+        sensitivities = self.context.session.run(self._get_fetches(self._Q_input_sensitivities, head_names), feed_dict={
             self._states_placeholder: states
         })
         return sensitivities
@@ -226,7 +265,8 @@ class Brain:
             assert len(my_vars) == len(
                 other_brain_vars), "Something is wrong! Both brains should have same number of vars in scope {0}".format(scope)
             if len(my_vars) == 0:
-                logger.warn("Warning: There are no variables in scope {0}!".format(scope))
+                logger.warn(
+                    "Warning: There are no variables in scope {0}!".format(scope))
             copy_ops = []
             for my_var, other_var in zip(my_vars, other_brain_vars):
                 copy_op = tf.assign(other_var, my_var * self.context.target_network_update_tau + (
@@ -236,8 +276,10 @@ class Brain:
 
     def tf_copy_to(self, other_brain, soft_copy=False, name='copy_brain_ops'):
         with tf.variable_scope(name):
-            Q_copy = self._tf_scope_copy_to(
-                other_brain, Brain.Scopes.Q_network.value, "Q_params_copy", soft_copy=soft_copy)
+            Q_copy = []
+            for head_name in self.head_names:
+                Q_copy.append(self._tf_scope_copy_to(
+                    other_brain, head_name + "/" + Brain.Scopes.Q_network.value, "Q_params_copy", soft_copy=soft_copy))
             embeddings_copy = self._tf_scope_copy_to(
                 other_brain, Brain.Scopes.states_embeddings.value, "states_embs_params_copy", soft_copy=soft_copy)
             rms_copy = self._tf_scope_copy_to(
@@ -252,22 +294,37 @@ class Brain:
                 self._states_placeholder: [state]
             })
 
-    def train(self, mb_states, mb_desiredQ):
+    def train(self, mb_states, *list_mb_desiredQ_per_head, loss_coeffs_per_head=None):
         self.Q_updates += 1
-        _, loss, mpe, V = self.context.session.run([self._Q_training_step, self._Q_loss, self._Q_mpe, self._V], feed_dict={
+        if loss_coeffs_per_head is None:
+            loss_coeffs_per_head = [1.0] * self.num_heads
+        fetches = [self._training_step, self._combined_loss]
+        fetches += self._get_fetches(self._Q_losses, None)
+        fetches += self._get_fetches(self._Q_mpes, None)
+        fetches += self._get_fetches(self._Vs, None)
+        feed_dict = {
             self._states_placeholder: mb_states,
-            self._desired_Q_placeholder: mb_desiredQ
-        })
-        mb_av_V_summary_name = "{0}/mb_av_V".format(self.name)
-        Q_loss_summary_name = "{0}/Q_loss".format(self.name)
-        Q_mpe_summary_name = "{0}/Q_mpe".format(self.name)
-        if self.Q_updates == 1:
-            self.context.summaries.setup_scalar_summaries(
-                [mb_av_V_summary_name, Q_loss_summary_name, Q_mpe_summary_name])
-        if self.Q_updates % 10 == 0:
-            self.context.log_summary({mb_av_V_summary_name: np.mean(
-                V), Q_loss_summary_name: loss, Q_mpe_summary_name: mpe}, self.context.frame_id)
-        return _, loss, mpe
+            self._loss_coeffs_placeholder: loss_coeffs_per_head
+        }
+        for head_id in range(self.num_heads):
+            feed_dict[self._desired_Q_placeholders[head_id]
+                      ] = list_mb_desiredQ_per_head[head_id]
+        results = self.context.session.run(fetches, feed_dict=feed_dict)
+        combined_loss = results[1]
+        Q_losses = results[2:2 + self.num_heads]
+        Q_mpes = results[2 + self.num_heads:2 + 2 * self.num_heads]
+        Vs = results[2 + 2 * self.num_heads:]
+        for head_name, Q_loss, Q_mpe, V in zip(self.head_names, Q_losses, Q_mpes, Vs):
+            mb_av_V_summary_name = "{0}/{1}/mb_av_V".format(self.name, head_name)
+            Q_loss_summary_name = "{0}/{1}/Q_loss".format(self.name, head_name)
+            Q_mpe_summary_name = "{0}/{1}/Q_mpe".format(self.name, head_name)
+            if self.Q_updates == 1:
+                self.context.summaries.setup_scalar_summaries(
+                    [mb_av_V_summary_name, Q_loss_summary_name, Q_mpe_summary_name])
+            if self.Q_updates % 10 == 0:
+                self.context.log_summary({mb_av_V_summary_name: np.mean(
+                    V), Q_loss_summary_name: Q_loss, Q_mpe_summary_name: Q_mpe}, self.context.frame_id)
+        return combined_loss, Q_losses, Q_mpes
 
     def train_transitions(self, mb_states, mb_actions, mb_next_states, mb_desired_tc):
         self.tc_updates += 1
