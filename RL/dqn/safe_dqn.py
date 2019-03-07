@@ -228,7 +228,7 @@ class SafeDQNAgent(DQNAgent):
         brain = self.target_brain if target_brain else self.main_brain
         Q, safety_Q = brain.get_Q(states)
         t = self.threshold_logic(safety_Q)
-        feasibility_mask = (Q > t).astype(np.int)
+        feasibility_mask = (safety_Q > t).astype(np.int)
         feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
         # additive mask should have -inf for infeasible actions and 0 for feasible:
         additive_mask = (1 - feasibility_mask) * -1e6
