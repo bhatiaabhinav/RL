@@ -192,6 +192,21 @@ class SafeDQNAgent(DQNAgent):
         loss_coeffs = [1.0] * len(head_names)
         super().__init__(context, name, head_names=head_names, loss_coeffs_per_head=loss_coeffs)
         self.safety_threshold = self.context.safety_threshold
+        self.min_threshold = self.safety_threshold
+        self.max_threshold = 0.01
+        logger.log("safety thres is ", str(self.safety_threshold))
+
+    def _reset_feasible_actions_count_stats(self):
+        self.av_feasible_actions_count = 0
+        self.nonrandom_actions_count = 0
+
+    def _update_feasible_actions_count_stats(self, feasible_action_count):
+        self.av_feasible_actions_count = (self.av_feasible_actions_count * self.nonrandom_actions_count + feasible_action_count) / (self.nonrandom_actions_count + 1)
+        self.nonrandom_actions_count += 1
+
+    def pre_episode(self):
+        super().pre_episode()
+        self._reset_feasible_actions_count_stats()
 
     def get_all_stream_rewards_current_frame(self):
         rewards = [self.context.frame_reward]
@@ -199,11 +214,21 @@ class SafeDQNAgent(DQNAgent):
             rewards.append(self.context.frame_info[stream_name + "_reward"])
         return rewards
 
+    def threshold_logic(self, Q):
+        # max_Q = np.max(Q, axis=-1, keepdims=True)
+        # min_Q = np.min(Q, axis=-1, keepdims=True)
+        # range_Q = max_Q - min_Q
+        # thres = max_Q - 0.5 * range_Q
+        # thres = np.clip(thres, self.min_threshold, self.max_threshold)
+        thres = self.context.safety_threshold
+        return thres
+
     def exploit_policy(self, states, target_brain=False):
         assert len(self.head_names) == 2, "Right now only one safety stream supported"
         brain = self.target_brain if target_brain else self.main_brain
         Q, safety_Q = brain.get_Q(states)
-        feasibility_mask = Q > self.safety_threshold
+        t = self.threshold_logic(safety_Q)
+        feasibility_mask = (Q > t).astype(np.int)
         feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
         # additive mask should have -inf for infeasible actions and 0 for feasible:
         additive_mask = (1 - feasibility_mask) * -1e6
@@ -211,7 +236,19 @@ class SafeDQNAgent(DQNAgent):
         action_greedy_feasible = np.argmax(Q_masked, axis=-1)
         action_safest = np.argmax(safety_Q, axis=-1)
         action = feasible_available_mask * action_greedy_feasible + (1 - feasible_available_mask) * action_safest
+        if len(states) == 1:
+            self._update_feasible_actions_count_stats(np.sum(feasibility_mask))
+            self.safety_threshold = t
         return action
+
+    def post_episode(self):
+        super().post_episode()
+        av_feasible_actions_count_summary_name = "av_feasible_actions_count"
+        if self.context.episode_id == 0:
+            self.context.summaries.setup_scalar_summaries(
+                [av_feasible_actions_count_summary_name])
+        self.context.log_summary(
+            {av_feasible_actions_count_summary_name: self.av_feasible_actions_count}, self.context.episode_id)
 
 
 class PenaltyBasedSafeDQN(DQNAgent):
