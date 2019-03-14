@@ -123,3 +123,47 @@ class PlotRenderer:
 
     def close(self):
         self.viewer.close()
+
+
+class BasePlotRenderer:
+    def __init__(self, window_width=None, window_height=None, window_caption='Plot', style='seaborn', auto_save=False, save_path=None, auto_dispatch_on_render=True):
+        self.viewer = ImagePygletWingow(width=window_width, height=window_height, caption=window_caption, vsync=False)
+        with plt.style.context(style):
+            self.fig = Figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.auto_save = auto_save
+        self.save_path = save_path
+        self.auto_dispatch_on_render = auto_dispatch_on_render
+
+    def plot(self):
+        pass
+
+    def render(self):
+        self.canvas.draw()
+        width, height = self.fig.get_size_inches() * self.fig.get_dpi()
+        image = np.fromstring(self.canvas.tostring_rgb(), dtype='uint8').reshape(
+            int(height), int(width), 3)
+        if self.auto_dispatch_on_render:
+            self.viewer.imshow(image)
+        else:
+            self.viewer.set_image(image)
+
+    def dispatch_events(self):
+        self.viewer.dispatch_events()
+
+    def plot_and_render(self):
+        self.plot()
+        self.render()
+
+    def save(self, path=None):
+        if path is None:
+            path = self.save_path
+        if path is None:
+            raise FileNotFoundError('No save path given')
+        dirname = os.path.dirname(path)
+        if len(dirname) > 0 and not os.path.exists(dirname):
+            os.makedirs(dirname)
+        self.fig.savefig(path)
+
+    def close(self):
+        self.viewer.close()

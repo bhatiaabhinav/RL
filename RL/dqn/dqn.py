@@ -48,7 +48,6 @@ class DQNAgent(Agent):
         self.loss_coeffs = loss_coeffs_per_head
         if not hasattr(self.context.gamma, "__len__") and len(head_names) > 1:
             logger.warn("You are using same gamma for all reward streams. Are you sure this is intentional?")
-            
         self.create_main_and_target_brains()
         self.create_experience_buffer()
 
@@ -114,7 +113,7 @@ class DQNAgent(Agent):
             assert len(self.nstep_buffer) == self.context.nsteps - 1
 
     def optimize(self, states, actions, *desired_Q_values_per_head):
-        all_rows = np.arange(self.context.minibatch_size)
+        all_rows = np.arange(len(states))
         Q_per_head = self.main_brain.get_Q(states)
         for Q, desired_Q_values in zip(Q_per_head, desired_Q_values_per_head):
             td_errors = desired_Q_values - Q[all_rows, actions]
@@ -164,7 +163,7 @@ class DQNAgent(Agent):
         self.add_to_experience_buffer(MultiRewardStreamExperience(
             c.frame_obs, c.frame_action, reward, c.frame_done, c.frame_info, c.frame_obs_next))
 
-        if c.frame_id % c.train_every == 0 and c.frame_id > c.minimum_experience:
+        if c.frame_id % c.train_every == 0 and c.frame_id >= c.minimum_experience:
             self.train()
 
         if c.frame_id % c.target_network_update_every == 0:

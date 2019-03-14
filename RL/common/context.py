@@ -242,10 +242,14 @@ class SimpleRenderingAgent(Agent):
         super().__init__(context, name)
         self.vsync = context.render_vsync
         self.window = None
+        self.text_mode = 'ansi' in self.context.env.metadata.get('render.modes', [])
 
     def render(self):
         if self.window and self.context.render and self.context.episode_id % self.context.render_interval == 0:
-            self.window.set_image(self.context.env.render(mode='rgb_array'))
+            if not self.text_mode:
+                self.window.set_image(self.context.env.render(mode='rgb_array'))
+            else:
+                self.window.set_text_image(self.context.env.render(mode='ansi'))
 
     def start(self):
         try:

@@ -201,7 +201,7 @@ class Brain:
     def _tf_Q_loss(self, Q, desired_Q):
         with tf.variable_scope(Brain.Scopes.Q_loss.value):
             error = Q - desired_Q
-            percentage_error = 100 * tf.abs(error / (desired_Q + 1e-3))
+            percentage_error = 100 * tf.abs(error) / (tf.abs(desired_Q) + 1e-3)
             # squared_error = tf.square(error)
             # mse = tf.reduce_mean(squared_error, name="mse")
             mpe = tf.reduce_mean(percentage_error, name="mpe")

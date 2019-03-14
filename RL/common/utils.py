@@ -43,6 +43,27 @@ class ImagePygletWingow(pyglet.window.Window):
         self.dispatch_event('on_draw')
         self.flip()
 
+    def set_text_image(self, text):
+        from PIL import Image, ImageDraw, ImageFont
+        # Availability is platform dependent
+        size = 20
+        font = 'arial'
+        # Create font
+        pil_font = ImageFont.truetype(font + ".ttf", size=size)
+        text_width, text_height = pil_font.getsize(text)
+
+        # create a blank canvas with extra space between lines
+        canvas = Image.new('RGB', [self.width, self.height], (255, 255, 255))
+
+        # draw the text onto the canvas
+        draw = ImageDraw.Draw(canvas)
+        offset = (10, 10)
+        white = "#000000"
+        draw.text(offset, text, font=pil_font, fill=white)
+        # Convert the canvas into an array with values in [0, 1]
+        img = (255 - np.asarray(canvas)).astype(np.uint8)
+        self.set_image(img)
+
 
 class SimpleImageViewer(object):
     def __init__(self, display=None, width=None, height=None, caption='SimpleImageViewer', resizable=True, vsync=False):
