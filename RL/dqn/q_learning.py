@@ -11,7 +11,7 @@ from RL.common.experience_buffer import (Experience, ExperienceBuffer,
                                          MultiRewardStreamExperience)
 from RL.common.plot_renderer import BasePlotRenderer
 from RL.dqn.safe_dqn import SafetyStatsRecorderAgent
-
+from RL.common.random_mdp import RandomMDP
 
 class QTableBrain:
     def __init__(self, context: Context, name):
@@ -299,6 +299,19 @@ class FrozenLakeSafetyWrapper(gym.Wrapper):
 
 
 class MyContext(Context):
+    def make_env(self, env_id):
+        if 'RandomMDP' in env_id:
+            args = env_id.split('-')
+            try:
+                n_states, n_actions, n_terms, seed = eval(args[1]), eval(args[2]), eval(args[3]), eval(args[4])
+                env = RandomMDP(n_states, n_actions, n_terms, seed=seed)
+                return env
+            except Exception as e:
+                logger.error('Invalid env_id {0}. Error={1}'.format(env_id, e))
+                raise e
+        else:
+            return super().make_env(env_id)
+
     def wrappers(self, env: gym.Env):
         env.metadata
         assert isinstance(

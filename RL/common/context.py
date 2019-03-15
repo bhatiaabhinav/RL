@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import List  # noqa: F401
 
 import gym
+import gym.wrappers
 import numpy as np
 import tensorflow as tf
 
@@ -90,12 +91,15 @@ class Context:
         if self.experiment_name == self.default_experiment_name:
             logger.warn("No experiment_name argument was provided. It is highly recommened that you name your experiments")
         self.logdir = logger.get_dir()
-        self.env = gym.make(self.env_id)
+        self.env = self.make_env(self.env_id)
         self.env = self.wrappers(self.env)
         self.env = gym.wrappers.Monitor(self.env, os.path.join(self.logdir, 'monitor'), force=True, video_callable=self._video_schedule)
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.session = tf.Session(config=config)
+
+    def make_env(self, env_id):
+        return gym.make(env_id)
 
     def _read_args(self):
         for arg in sys.argv[1:]:
