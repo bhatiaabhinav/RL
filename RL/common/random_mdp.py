@@ -39,6 +39,21 @@ class RandomMDP(gym.Env):
         self._safety_reward_fn = np.clip(4 * (self._safety_reward_fn - 0.5) + 0.5, 0, 1)  # contrast = 4
         self._safety_reward_fn = -self._safety_reward_fn
 
+        self.metadata["reward_fn"] = np.zeros(shape=[self._n_states, self._n_actions, self._n_states])
+        self.metadata["reward_fn"][0:self._n_non_term_states, :, :] = self._reward_fn
+        self.metadata["safety_reward_fn"] = np.zeros(shape=[self._n_states, self._n_actions, self._n_states])
+        self.metadata["safety_reward_fn"][0:self._n_non_term_states, :, :] = self._safety_reward_fn
+        self.metadata["transition_fn"] = np.zeros(shape=[self._n_states, self._n_actions, self._n_states])
+        self.metadata["transition_fn"][0:self._n_non_term_states, :, :] = self._state_trans_p
+        self.metadata["start_state_fn"] = np.zeros(shape=[self._n_states])
+        self.metadata["start_state_fn"][0:self._n_non_term_states] = self._start_state_p
+        if self._n_term_states > 0:
+            self.metadata["reward_fn"][self._n_non_term_states:, :, :] = 0
+            self.metadata["safety_reward_fn"][self._n_non_term_states:, :, :] = 0
+            self.metadata["transition_fn"][self._n_non_term_states:, :, self._n_non_term_states:] = np.expand_dims(np.identity(self._n_term_states), axis=1)
+            self.metadata["transition_fn"][self._n_non_term_states:, :, 0:self._n_non_term_states] = 0
+            self.metadata["start_state_fn"][self._n_non_term_states:] = 0
+
         self._cur_state = None
         self._cur_action = None
         self._cur_reward = 0

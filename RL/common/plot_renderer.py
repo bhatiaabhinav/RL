@@ -129,7 +129,7 @@ class BasePlotRenderer:
     def __init__(self, window_width=None, window_height=None, window_caption='Plot', style='seaborn', auto_save=False, save_path=None, auto_dispatch_on_render=True):
         self.viewer = ImagePygletWingow(width=window_width, height=window_height, caption=window_caption, vsync=False)
         with plt.style.context(style):
-            self.fig = Figure()
+            self.fig = Figure(figsize=(1920 / 192, 1080 / 192), dpi=192)
         self.canvas = FigureCanvas(self.fig)
         self.auto_save = auto_save
         self.save_path = save_path
@@ -163,7 +163,7 @@ class BasePlotRenderer:
         dirname = os.path.dirname(path)
         if len(dirname) > 0 and not os.path.exists(dirname):
             os.makedirs(dirname)
-        self.fig.savefig(path)
+        self.fig.savefig(path, dpi=192)
 
     def close(self):
         self.viewer.close()

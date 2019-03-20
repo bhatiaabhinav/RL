@@ -234,6 +234,10 @@ class SafeQAgent(QAgent):
             {av_feasible_actions_count_summary_name: self.av_feasible_actions_count}, self.context.episode_id)
 
 
+class AdaptivePenaltySafeQAgent(QAgent):
+    pass
+        
+
 class QTablePlotAgent(Agent):
     def __init__(self, context: Context, name, qAgent: QAgent, head_ids=0):
         super().__init__(context, name)
@@ -321,21 +325,152 @@ class MyContext(Context):
         return env
 
 
-if __name__ == '__main__':
-    context = MyContext()
+def synchronus_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, gamma=0.99, seed=None, iterations=1000):
+    plotter = BasePlotRenderer(window_caption="Sync Q Learning", auto_dispatch_on_render=True)
 
-    runner = RLRunner(context)
+    def update(iter_no, Qs):
+        plotter.fig.clear()
+        plotter.fig.suptitle("Iteration {0}".format(iter_no))
+        axess = plotter.fig.subplots(1, len(Qs), sharey=True)
+        axess = [axess] if not hasattr(axess, "__len__") else axess
+        for i, (axes, Q) in enumerate(zip(axess, Qs)):
+            axes.set_title("Q{0}".format(i))
+            axes.matshow(Q)
+        plotter.render()
 
-    runner.register_agent(SeedingAgent(context, "seeder"))
-    # runner.register_agent(RandomPlayAgent(context, "RandomPlayer"))
-    if context.render:
-        runner.register_agent(SimpleRenderingAgent(context, "Video"))
-    q_agent = runner.register_agent(SafeQAgent(context, "Q"))
-    runner.register_agent(SafetyStatsRecorderAgent(context, "SafetyStats"))
-    if context.plot_Q:
-        runner.register_agent(QTablePlotAgent(
-            context, "Q", q_agent, head_ids=list(range(len(q_agent.head_names)))))
-    runner.register_agent(PygletLoop(context, "PygletLoop"))
-    runner.run()
+    n_states = transition_fn.shape[0]
+    n_actions = transition_fn.shape[1]
+    p = transition_fn
+    r = reward_fn
+    random = np.random.RandomState(seed=seed)
+    Q = random.standard_normal(size=[n_states, n_actions])
+    all_rows = np.arange(n_states)
 
-    context.close()
+    def policy():
+        return np.argmax(Q, axis=-1)
+
+    for iter_no in range(iterations):
+        Q = np.sum(p * (r + gamma * Q[all_rows, policy()]), axis=-1)
+        if iter_no % 10 == 0:
+            update(iter_no, [Q])
+
+    plotter.close()
+    return Q
+
+
+def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, safety_reward_fn: np.ndarray, thres, gamma=0.99, seed=None, iterations=1000):
+    plotter = BasePlotRenderer(window_caption="Sync Q Learning", auto_dispatch_on_render=True)
+    n_states = transition_fn.shape[0]
+    n_actions = transition_fn.shape[1]
+    p = transition_fn
+    r = reward_fn
+    sr = safety_reward_fn
+    random = np.random.RandomState(seed=seed)
+    Q = random.standard_normal(size=[n_states, n_actions])
+    Q_safe = random.standard_normal(size=[n_states, n_actions])
+    Q_TD = None
+    Q_safe_TD = None
+    list_stats = []
+    all_rows = np.arange(n_states)
+
+    def policy():
+        feasibility_mask = (Q_safe > thres).astype(np.int)
+        feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
+        # additive mask should have -inf for infeasible actions and 0 for feasible:
+        additive_mask = (1 - feasibility_mask) * -1e6
+        Q_masked = Q + additive_mask
+        action_greedy_feasible = np.argmax(Q_masked, axis=-1)
+        action_safest = np.argmax(Q_safe, axis=-1)
+        action = feasible_available_mask * action_greedy_feasible + \
+            (1 - feasible_available_mask) * action_safest
+        return action
+    
+    def stats():
+        pi = policy()
+        V = Q[all_rows, pi]
+        V_safe = Q_safe[all_rows, pi]
+        av_feasible_actions = np.average(np.sum((Q_safe > thres).astype(np.int), -1))
+        start_dist = c.env.metadata["start_state_fn"]
+        J, J_safe = np.sum(start_dist * V), np.sum(start_dist * V_safe)
+        error, error_safe = np.average(np.abs(Q_TD)), np.average(np.abs(Q_safe_TD))
+        return {
+            "av_V": np.average(V),
+            "worst_V": np.min(V),
+            "av_V_safe": np.average(V_safe),
+            "worst_V_safe": np.min(V_safe),
+            "J": J,
+            "J_safe": J_safe,
+            "error": error,
+            "error_safe": error_safe,
+            "av_feasible_actions": av_feasible_actions,
+            "thres": thres
+        }
+
+    def get_curve(key):
+        return [s[key] for s in list_stats]
+
+    def update_graph():
+        plotter.fig.clear()
+        plotter.fig.suptitle("Safe Q Learning for {0}: Iteration {1}".format(c.env_id, len(list_stats)))
+        axess = plotter.fig.subplots(2, 3, squeeze=False)
+        axess[0, 0].set_title("Q Table")
+        axess[0, 0].matshow(Q)
+        axess[1, 0].set_title("Safety Q Table")
+        axess[1, 0].matshow(Q_safe)
+        x = np.arange(1, len(list_stats) + 1)
+        axess[0, 1].set_title('Values per Iteration')
+        axess[0, 1].plot(x, get_curve('J'), 'b-', x, get_curve('av_V'), 'g-', x, get_curve('worst_V'), 'y-', x, get_curve('error'), 'r-')
+        axess[0, 1].legend(['J', 'Av V', 'Min V', 'Av TD Error'])
+        axess[1, 1].set_title('Safety Values per Iteration')
+        axess[1, 1].plot(x, get_curve('J_safe'), 'b-', x, get_curve('av_V_safe'), 'g-', x, get_curve('worst_V_safe'), 'y-', x, get_curve('error_safe'), 'r-', x, get_curve('thres'), 'c--')
+        axess[1, 1].legend(['J', 'Av V', 'Min V', 'Av TD Error', 'Safety Thresh'])
+        axess[1, 2].set_title('Av Feasible Actions per Iteration')
+        axess[1, 2].plot(x, get_curve('av_feasible_actions'), 'm-')
+        if c.render:
+            plotter.render()
+
+    for iter_no in range(iterations):
+        mu = policy()
+        Q_TD = np.sum(p * (r + gamma * Q[all_rows, mu]), axis=-1) - Q
+        Q_safe_TD = np.sum(p * (sr + gamma * Q_safe[all_rows, mu]), axis=-1) - Q_safe
+        Q, Q_safe = Q + Q_TD, Q_safe + Q_safe_TD
+        list_stats.append(stats())
+        if iter_no == 0 or (iter_no + 1) % c.render_interval == 0:
+            update_graph()
+
+    plotter.close()
+    plotter.save(path=os.path.join(logger.get_dir(), "Training_Curves", "Thres_{0}.png".format(thres)))
+
+    return Q, Q_safe, stats()
+
+
+c = MyContext()
+env = c.env
+logger.info("Env: ", str(env.metadata))
+# Q = synchronus_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], c.safety_threshold, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+logger.log("Q: ", str(Q))
+logger.log("Q_safe: ", str(Q_safe))
+logger.log(str(stats))
+# for thres in np.linspace(-2, 0, num=20):
+#     Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], thres, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+#     logger.log(str(stats))
+
+# if __name__ == '__main__':
+#     context = MyContext()
+
+#     runner = RLRunner(context)
+
+#     runner.register_agent(SeedingAgent(context, "seeder"))
+#     # runner.register_agent(RandomPlayAgent(context, "RandomPlayer"))
+#     if context.render:
+#         runner.register_agent(SimpleRenderingAgent(context, "Video"))
+#     q_agent = runner.register_agent(SafeQAgent(context, "Q"))
+#     runner.register_agent(SafetyStatsRecorderAgent(context, "SafetyStats"))
+#     if context.plot_Q:
+#         runner.register_agent(QTablePlotAgent(
+#             context, "Q", q_agent, head_ids=list(range(len(q_agent.head_names)))))
+#     runner.register_agent(PygletLoop(context, "PygletLoop"))
+#     runner.run()
+
+#     context.close()
