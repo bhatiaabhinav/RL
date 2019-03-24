@@ -358,8 +358,8 @@ def synchronus_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, gamm
     return Q
 
 
-def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, safety_reward_fn: np.ndarray, thres, gamma=0.99, seed=None, iterations=1000):
-    plotter = BasePlotRenderer(window_caption="Sync Q Learning", auto_dispatch_on_render=True)
+def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, safety_reward_fn: np.ndarray, thres, alpha=0.1, beta=0.1, gamma=0.99, seed=None, iterations=1000):
+    plotter = BasePlotRenderer(window_caption="Sync Soft Safe Q Learning", auto_dispatch_on_render=True)
     n_states = transition_fn.shape[0]
     n_actions = transition_fn.shape[1]
     p = transition_fn
@@ -374,25 +374,35 @@ def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray,
     all_rows = np.arange(n_states)
 
     def policy():
-        feasibility_mask = (Q_safe > thres).astype(np.int)
-        feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
-        # additive mask should have -inf for infeasible actions and 0 for feasible:
-        additive_mask = (1 - feasibility_mask) * -1e6
-        Q_masked = Q + additive_mask
-        action_greedy_feasible = np.argmax(Q_masked, axis=-1)
-        action_safest = np.argmax(Q_safe, axis=-1)
-        action = feasible_available_mask * action_greedy_feasible + \
-            (1 - feasible_available_mask) * action_safest
-        return action
-    
+        # feasibility_mask = (Q_safe > thres).astype(np.int)
+        # feasible_available_mask = np.any(feasibility_mask, axis=-1).astype(np.int)
+        # # additive mask should have -inf for infeasible actions and 0 for feasible:
+        # additive_mask = (1 - feasibility_mask) * -1e6
+        # Q_masked = Q + additive_mask
+        # action_greedy_feasible = np.argmax(Q_masked, axis=-1)
+        # action_safest = np.argmax(Q_safe, axis=-1)
+        # action = feasible_available_mask * action_greedy_feasible + \
+        #     (1 - feasible_available_mask) * action_safest
+        # ans = np.zeros([n_states, n_actions])
+        # ans[all_rows, action] = 1
+        g = 1 / (1 + np.exp((thres - Q_safe) / beta))
+        max_g = np.max(g, -1, keepdims=True)
+        exp_Q = np.exp(Q / alpha)
+        exp_safe_Q = np.exp(Q_safe / beta)
+        pi_greedy = g * exp_Q / np.sum(g * exp_Q, -1, keepdims=True)
+        pi_safe = exp_safe_Q / np.sum(exp_safe_Q, -1, keepdims=True)
+        ans = max_g * pi_greedy + (1 - max_g) * pi_safe
+        return ans
+
     def stats():
         pi = policy()
-        V = Q[all_rows, pi]
-        V_safe = Q_safe[all_rows, pi]
+        V = np.sum(pi * Q, -1)
+        V_safe = np.sum(pi * Q_safe, -1)
         av_feasible_actions = np.average(np.sum((Q_safe > thres).astype(np.int), -1))
         start_dist = c.env.metadata["start_state_fn"]
         J, J_safe = np.sum(start_dist * V), np.sum(start_dist * V_safe)
         error, error_safe = np.average(np.abs(Q_TD)), np.average(np.abs(Q_safe_TD))
+        H = np.sum(-pi * np.log(pi), axis=-1)
         return {
             "av_V": np.average(V),
             "worst_V": np.min(V),
@@ -403,7 +413,16 @@ def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray,
             "error": error,
             "error_safe": error_safe,
             "av_feasible_actions": av_feasible_actions,
-            "thres": thres
+            "av_H": np.average(H),
+            "min_H": np.min(H),
+            "max_H": np.max(H),
+            "thres": thres,
+            "alpha": alpha,
+            "beta": beta,
+            "iters": iter_no + 1,
+            "Q": Q,
+            "V": V,
+            "pi": pi
         }
 
     def get_curve(key):
@@ -411,7 +430,7 @@ def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray,
 
     def update_graph():
         plotter.fig.clear()
-        plotter.fig.suptitle("Safe Q Learning for {0}: Iteration {1}".format(c.env_id, len(list_stats)))
+        plotter.fig.suptitle("Soft Safe Q Learning for {0} (tau={1}, alpha={2}, beta={3}): Iteration {4}".format(c.env_id, thres, alpha, beta, len(list_stats)))
         axess = plotter.fig.subplots(2, 3, squeeze=False)
         axess[0, 0].set_title("Q Table")
         axess[0, 0].matshow(Q)
@@ -424,37 +443,97 @@ def synchronus_Safe_Q_learning(transition_fn: np.ndarray, reward_fn: np.ndarray,
         axess[1, 1].set_title('Safety Values per Iteration')
         axess[1, 1].plot(x, get_curve('J_safe'), 'b-', x, get_curve('av_V_safe'), 'g-', x, get_curve('worst_V_safe'), 'y-', x, get_curve('error_safe'), 'r-', x, get_curve('thres'), 'c--')
         axess[1, 1].legend(['J', 'Av V', 'Min V', 'Av TD Error', 'Safety Thresh'])
+        axess[0, 2].set_title('Entropy')
+        axess[0, 2].plot(x, get_curve('max_H'), 'c-', x, get_curve('av_H'), 'g-', x, get_curve('min_H'), 'r-')
+        axess[0, 2].legend(['Max H', 'Av H', 'Min H'])
         axess[1, 2].set_title('Av Feasible Actions per Iteration')
         axess[1, 2].plot(x, get_curve('av_feasible_actions'), 'm-')
         if c.render:
             plotter.render()
 
     for iter_no in range(iterations):
-        mu = policy()
-        Q_TD = np.sum(p * (r + gamma * Q[all_rows, mu]), axis=-1) - Q
-        Q_safe_TD = np.sum(p * (sr + gamma * Q_safe[all_rows, mu]), axis=-1) - Q_safe
+        pi = policy()
+        V = np.sum(pi * Q, -1)
+        V_safe = np.sum(pi * Q_safe, -1)
+        Q_TD = np.sum(p * (r + gamma * V), axis=-1) - Q
+        Q_safe_TD = np.sum(p * (sr + gamma * V_safe), axis=-1) - Q_safe
         Q, Q_safe = Q + Q_TD, Q_safe + Q_safe_TD
         list_stats.append(stats())
         if iter_no == 0 or (iter_no + 1) % c.render_interval == 0:
             update_graph()
 
+    update_graph()
+    plotter.save(path=os.path.join(logger.get_dir(), "Training_Curves", "Thres_{0}_alpha_{1}_beta_{2}.png".format(thres, alpha, beta)))
     plotter.close()
-    plotter.save(path=os.path.join(logger.get_dir(), "Training_Curves", "Thres_{0}.png".format(thres)))
 
     return Q, Q_safe, stats()
+
+
+def synchronus_policy_learning(transition_fn: np.ndarray, reward_fn: np.ndarray, safety_reward_fn: np.ndarray, thres, alpha=0.1, gamma=0.99, seed=None, iterations=1000):
+    # plotter = BasePlotRenderer(window_caption="Sync Q Learning", auto_dispatch_on_render=True)
+    n_states = transition_fn.shape[0]
+    n_actions = transition_fn.shape[1]
+    p = transition_fn
+    r = reward_fn
+    # sr = safety_reward_fn
+    random = np.random.RandomState(seed=seed)
+    Q = random.standard_normal(size=[n_states, n_actions])
+    pi = random.uniform(size=[n_states, n_actions])
+    pi = pi / np.sum(pi, axis=-1, keepdims=True)
+    Q_TD = None
+    list_stats = []
+    all_rows = np.arange(n_states)
+    
+    def stats():
+        start_dist = c.env.metadata["start_state_fn"]
+        J = np.sum(start_dist * V)
+        error = np.average(np.abs(Q_TD))
+        return {
+            "av_V": np.average(V),
+            "worst_V": np.min(V),
+            "av_H": np.average(H),
+            "J": J,
+            "error": error
+        }
+
+    def get_curve(key):
+        return [s[key] for s in list_stats]
+
+    for iter_no in range(iterations):
+        H = np.sum(-pi * np.log(pi), axis=-1)
+        V = np.sum(pi * Q, axis=-1)
+        # A = Q - np.reshape(V, [n_states, 1])
+    
+        exp_Q = np.exp(Q / alpha)
+        pi = exp_Q / np.sum(exp_Q, -1, keepdims=True)
+        # pi = np.zeros([n_states, n_actions])
+        # pi[all_rows, np.argmax(Q, axis=-1)] = 1
+        Q_TD = np.sum(p * (r + gamma * V), axis=-1) - Q
+        Q = Q + Q_TD
+
+        list_stats.append(stats())
+        if iter_no == 0 or (iter_no + 1) % c.render_interval == 0:
+            # update_graph()
+            print(list_stats[-1])
+
+    # plotter.close()
+    # plotter.save(path=os.path.join(logger.get_dir(), "Training_Curves", "Thres_{0}.png".format(thres)))
+
+    return Q, stats()
 
 
 c = MyContext()
 env = c.env
 logger.info("Env: ", str(env.metadata))
 # Q = synchronus_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
-Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], c.safety_threshold, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
-logger.log("Q: ", str(Q))
-logger.log("Q_safe: ", str(Q_safe))
-logger.log(str(stats))
-# for thres in np.linspace(-2, 0, num=20):
-#     Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], thres, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
-#     logger.log(str(stats))
+# Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], c.safety_threshold, alpha=c.alpha, beta=c.beta, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+# # Q, stats = synchronus_policy_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], c.safety_threshold, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+# logger.log(str(stats))
+for thres in [-2, -1.5, -1, -0.66, -0.5, -0.25, 0]:
+    for alpha in [0.01, 0.05, 0.1, 0.2]:
+        for beta in [0.01, 0.05, 0.1, 0.2]:
+            Q, Q_safe, stats = synchronus_Safe_Q_learning(env.metadata["transition_fn"], env.metadata["reward_fn"], env.metadata["safety_reward_fn"], thres, alpha=alpha, beta=beta, gamma=c.gamma, seed=c.seed, iterations=c.n_episodes)
+            logger.log(str(stats))
 
 # if __name__ == '__main__':
 #     context = MyContext()

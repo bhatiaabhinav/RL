@@ -65,6 +65,8 @@ class Context:
     atari_clip_rewards = True
     atari_episode_life = True
     lunar_no_crash_penalty_main_stream = False
+    alpha = 0.1
+    beta = 0.1
 
     def __init__(self):
         self.env_id = self.default_env_id

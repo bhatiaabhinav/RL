@@ -127,7 +127,11 @@ class PlotRenderer:
 
 class BasePlotRenderer:
     def __init__(self, window_width=None, window_height=None, window_caption='Plot', style='seaborn', auto_save=False, save_path=None, auto_dispatch_on_render=True):
-        self.viewer = ImagePygletWingow(width=window_width, height=window_height, caption=window_caption, vsync=False)
+        self._window_height = window_height
+        self._window_width = window_width
+        self._window_caption = window_caption
+        self.style = style
+        self.viewer = None  # type: ImagePygletWingow
         with plt.style.context(style):
             self.fig = Figure(figsize=(1920 / 192, 1080 / 192), dpi=192)
         self.canvas = FigureCanvas(self.fig)
@@ -143,13 +147,16 @@ class BasePlotRenderer:
         width, height = self.fig.get_size_inches() * self.fig.get_dpi()
         image = np.fromstring(self.canvas.tostring_rgb(), dtype='uint8').reshape(
             int(height), int(width), 3)
+        if not self.viewer:
+            self.viewer = ImagePygletWingow(width=self._window_width, height=self._window_height, caption=self._window_caption, vsync=False)
         if self.auto_dispatch_on_render:
             self.viewer.imshow(image)
         else:
             self.viewer.set_image(image)
 
     def dispatch_events(self):
-        self.viewer.dispatch_events()
+        if self.viewer:
+            self.viewer.dispatch_events()
 
     def plot_and_render(self):
         self.plot()
@@ -166,4 +173,5 @@ class BasePlotRenderer:
         self.fig.savefig(path, dpi=192)
 
     def close(self):
-        self.viewer.close()
+        if self.viewer:
+            self.viewer.close()
