@@ -9,6 +9,7 @@ import numpy as np
 import pyglet
 import tensorflow as tf
 import tensorflow.contrib as tc
+import gym
 from keras.initializers import Orthogonal
 from keras.layers import Activation, BatchNormalization, Dense
 from keras.models import Sequential
@@ -28,26 +29,27 @@ class ImagePygletWingow(pyglet.window.Window):
         if self.image is not None:
             self.image.blit(0, 0, width=self.width, height=self.height)
 
-    def set_image(self, arr):
+    def set_image(self, arr, dispatch_events=False):
         assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
         self.image = pyglet.image.ImageData(arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
         if self.auto_resize:
             self.set_size(arr.shape[1], arr.shape[0])
             self.auto_resize = False
+        if dispatch_events:
+            # self.clear()
+            self.switch_to()
+            self.dispatch_events()
+            self.dispatch_event('on_draw')
+            self.flip()
 
     def imshow(self, arr):
-        self.set_image(arr)
-        # self.clear()
-        self.switch_to()
-        self.dispatch_events()
-        self.dispatch_event('on_draw')
-        self.flip()
+        self.set_image(arr, True)
 
-    def set_text_image(self, text):
+    def set_text_image(self, text, dispatch_events=False):
         from PIL import Image, ImageDraw, ImageFont
         # Availability is platform dependent
         size = 20
-        font = 'arial'
+        font = 'cour'
         # Create font
         pil_font = ImageFont.truetype(font + ".ttf", size=size)
         text_width, text_height = pil_font.getsize(text)
@@ -62,7 +64,10 @@ class ImagePygletWingow(pyglet.window.Window):
         draw.text(offset, text, font=pil_font, fill=white)
         # Convert the canvas into an array with values in [0, 1]
         img = (255 - np.asarray(canvas)).astype(np.uint8)
-        self.set_image(img)
+        self.set_image(img, dispatch_events=dispatch_events)
+
+    def textimshow(self, text):
+        self.set_text_image(text, True)
 
 
 class SimpleImageViewer(object):
@@ -113,7 +118,7 @@ class SimpleImageViewer(object):
     def imshow(self, arr):
         if not self._failed:
             self.set_image(arr)
-            self.window.clear()
+            # self.window.clear()
             self.window.switch_to()
             self.window.dispatch_events()
             self.window.dispatch_event('on_draw')
@@ -579,8 +584,8 @@ def tf_deep_net(inputs, inputs_shape, inputs_dtype, scope, hidden_size, init_sca
         return final
 
 
-def conv_net(inputs, convs, activation_fn, name):
-    with tf.variable_scope(name):
+def conv_net(inputs, convs, activation_fn, name, reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
         prev_layer = tf.cast(inputs, tf.float32)
         for layer_id, (nfilters, kernel, stride) in enumerate(convs):
             h = tf.layers.conv2d(prev_layer, nfilters,
@@ -591,8 +596,8 @@ def conv_net(inputs, convs, activation_fn, name):
     return prev_layer
 
 
-def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
-    with tf.variable_scope(name):
+def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
         prev_layer = inputs
         for layer_id, layer in enumerate(hidden_layers):
             h = tf.layers.dense(prev_layer, layer,
@@ -609,16 +614,16 @@ def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activati
     return output_layer
 
 
-def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
-    with tf.variable_scope(name):
+def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
         conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
                             output_size, output_activation, "dense_net", output_kernel_initializer=output_kernel_initializer)
         return mlp_out
 
 
-def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None):
-    with tf.variable_scope(name):
+def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
         if need_conv_net:
             conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         else:
@@ -645,6 +650,88 @@ def tf_training_step(loss, vars, optimizer, l2_reg, clip_gradients, name):
             grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
         sgd_step = optimizer.apply_gradients(zip(grads, vars))
         return sgd_step
+
+
+def tf_inputs(input_shape, input_dtype, name, cast_to_dtype=None):
+    '''returns placeholders, inputs'''
+    with tf.variable_scope(name):
+        placeholder = tf.placeholder(dtype=input_dtype, shape=input_shape, name="{0}_placholder".format(name))
+        inputs = placeholder
+        if cast_to_dtype is not None:
+            inputs = tf.cast(inputs, cast_to_dtype)
+        return placeholder, inputs
+
+
+class TFParamsSaverLoader:
+    '''Utility for Saving and loading tensorflow params'''
+    def __init__(self, name, params, session: tf.Session):
+        self.params = params
+        self.session = session
+        with tf.variable_scope(name):
+            self._load_placeholders = []
+            self._load_ops = []
+            for p in params:
+                p_placeholder = tf.placeholder(shape=p.shape.as_list(), dtype=tf.float32)
+                self._load_placeholders.append(p_placeholder)
+                self._load_ops.append(p.assign(p_placeholder))
+
+    def load(self, load_path):
+        loaded_params = joblib.load(load_path)
+        feed_dict = {}
+        for p, p_placeholder in zip(loaded_params, self._load_placeholders):
+            feed_dict[p_placeholder] = p
+        self.session.run(self._load_ops, feed_dict=feed_dict)
+
+    def save(self, save_path):
+        params_values = self.session.run(self.params)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        joblib.dump(params_values, save_path)
+
+
+class TFParamsCopier:
+    def __init__(self, name, params_from, params_to, session: tf.Session):
+        self.params_from = params_from
+        self.params_to = params_to
+        self.session = session
+        self.ZERO_NOISE = self.generate_zero_noise()
+        assert len(params_from) == len(params_to), "Number of params not same"
+        if len(params_from) == 0:
+            logger.warn("No params to copy")
+        with tf.variable_scope(name):
+            self.tau, _ = tf_inputs(None, tf.float32, "tau")
+            self.copy_ops = []
+            self.noise_vars = []
+            for p_from, p_to in zip(params_from, params_to):
+                noise_var = tf.placeholder(shape=p_from.shape.as_list(), dtype=tf.float32)
+                self.noise_vars.append(noise_var)
+                copy_op = tf.assign(p_to, (p_from + noise_var) * self.tau + (1 - self.tau) * p_to)
+                self.copy_ops.append(copy_op)
+
+    def generate_normal_noise(self, sigma=1):
+        noise = []
+        for p in self.params_from:
+            n = sigma * np.random.standard_normal(size=p.shape.as_list())
+            noise.append(n)
+        return noise
+
+    def generate_zero_noise(self):
+        noise = []
+        for p in self.params_from:
+            noise.append(np.zeros(p.shape.as_list()))
+        return noise
+
+    def copy(self, tau=1, noise=None):
+        if noise is None:
+            noise = self.ZERO_NOISE
+        feed_dict = {}
+        for noise_var, n in zip(self.noise_vars, noise):
+            feed_dict[noise_var] = n
+        feed_dict[self.tau] = tau
+        self.session.run(self.copy_ops, feed_dict)
+
+
+def need_conv_net(space: gym.Space):
+    return isinstance(space, gym.spaces.Box) and len(space.shape) >= 2
 
 
 class Model:

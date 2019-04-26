@@ -23,7 +23,7 @@ class Context:
     eval_mode = False
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
-    Q_hidden_layers = [512]  # hidden layers
+    hidden_layers = [512]  # hidden layers
     n_episodes = 10000
     experience_buffer_length = 100000
     experience_buffer_megabytes = None
@@ -37,10 +37,13 @@ class Context:
     target_network_update_tau = 0.001  # ddpg style target network (soft) update step size
     minibatch_size = 32
     nsteps = 3  # n-step TD learning
-    learning_rate = 6.25e-5
+    max_depth = 5  # max_depth for look ahead planning
+    learning_rate = 1e-3
+    actor_learning_rate = 1e-4
     double_dqn = False
     dueling_dqn = False
     l2_reg = 0
+    actor_l2_reg = 0
     clip_gradients = False
     clip_td_error = False
     video_interval = 50  # every these many episodes, video recording will be done
@@ -50,7 +53,9 @@ class Context:
     rnd_num_features = 64  # predict these many random features of obs
     rnd_layers = [128]  # architecture of the rnd_predictor network
     rnd_learning_rate = 1e-4  # learning rate for the rnd_predictor network
+    np_print_precision = 3
     render = False
+    render_mode = 'auto'
     sensitivity_visualizer = False
     plot_Q = False
     render_interval = 1
@@ -82,6 +87,7 @@ class Context:
         self.frame_info = {}
         self.intrinsic_returns = []
         self._read_args()
+        np.set_printoptions(precision=self.np_print_precision)
         logger.set_logdir(os.getenv('OPENAI_LOGDIR'), self.env_id, self.experiment_name)
         with open(os.path.join(logger.get_dir(), "context_class.json"), "w") as f:
             v = vars(Context)
@@ -205,6 +211,7 @@ class Agent:
         self.context = context  # type: Context
         self.name = name
         self.runner = None  # type: RLRunner
+        self.enabled = True
 
     def start(self):
         pass
@@ -234,13 +241,19 @@ class PygletLoop(Agent):
         if self.context.pyglet_fps > 0:
             pyglet.clock.set_fps_limit(self.context.pyglet_fps)
 
-    def post_act(self):
+    def tick(self):
         pyglet.clock.tick()
         for window in pyglet.app.windows:
             window.switch_to()
             window.dispatch_events()
             window.dispatch_event('on_draw')
             window.flip()
+
+    def pre_episode(self):
+        self.tick()
+
+    def post_act(self):
+        self.tick()
 
 
 class SimpleRenderingAgent(Agent):
@@ -251,15 +264,18 @@ class SimpleRenderingAgent(Agent):
         self.text_mode = 'ansi' in self.context.env.metadata.get('render.modes', [])
 
     def render(self):
-        if self.window and self.context.render and self.context.episode_id % self.context.render_interval == 0:
-            if not self.text_mode:
-                self.window.set_image(self.context.env.render(mode='rgb_array'))
+        if self.context.render and self.context.episode_id % self.context.render_interval == 0:
+            if self.window and self.context.render_mode == 'auto':
+                if not self.text_mode:
+                    self.window.set_image(self.context.env.render(mode='rgb_array'))
+                else:
+                    self.window.set_text_image(self.context.env.render(mode='ansi'))
             else:
-                self.window.set_text_image(self.context.env.render(mode='ansi'))
+                self.context.env.render(mode=self.context.render_mode)
 
     def start(self):
         try:
-            if self.context.render:
+            if self.context.render and self.context.render_mode == 'auto':
                 self.window = ImagePygletWingow(caption=self.context.env_id + ":" + self.context.experiment_name + ":" + self.name, vsync=self.vsync)
         except Exception as e:
             logger.error("{0}: Could not create window. Reason = {1}".format(self.name, str(e)))
@@ -289,6 +305,47 @@ class RandomPlayAgent(Agent):
         return self.context.env.action_space.sample()
 
 
+class SlowHuman(Agent):
+    def act(self):
+        action = None
+        while action is None:
+            action = eval(input("Pick an action from space={0}: ".format(self.context.env.action_space)))
+            action = np.array(action)
+            if not self.context.env.action_space.contains(action):
+                print("Illegal action. Pick again.")
+                action = None
+        return action
+
+
+class ModelLoaderSaverAgent(Agent):
+    def __init__(self, context: Context, name, model, filename='model'):
+        super().__init__(context, name)
+        self.model = model
+        self.filename = filename
+        self.model.setup_saving_loading_ops('saving_loading_ops_' + model.name, reuse=False)
+
+    def start(self):
+        super().start()
+        if self.context.load_model_dir is not None:
+            self.model.load(filename=self.filename)
+
+    def save_model(self):
+        self.model.save(filename=self.filename)
+        self.model.save(filename=self.filename + str(self.context.episode_id))
+        logger.log(self.filename, "saved", level=logger.DEBUG)
+
+    def post_episode(self):
+        if self.context.eval_mode:
+            return
+        if self.context.episode_id % self.context.save_every == 0:
+            self.save_model()
+
+    def close(self):
+        if self.context.eval_mode:
+            return
+        self.save_model()
+
+
 class RLRunner:
     def __init__(self, context: Context):
         self.agents = []  # type: List[Agent]
@@ -303,22 +360,25 @@ class RLRunner:
         self._agent_name_to_agent_map[agent.name] = Agent
         return agent
 
+    def enabled_agents(self):
+        return list(filter(lambda agent: agent.enabled, self.agents))
+
     def run(self):
         assert not self._closed, "You cannot run this runner again. This runner is closed. Use a new one"
         c = self.context
         c.summaries = Summaries(c.session)
         c.session.run(tf.global_variables_initializer())
-        [agent.start() for agent in self.agents]
+        [agent.start() for agent in self.enabled_agents()]
 
         for c.episode_id in range(c.n_episodes):
             c.frame_done = False
             self.env.stats_recorder.type = 'e' if c.should_eval_episode() else 't'
             c.frame_obs = self.env.reset()
-            [agent.pre_episode() for agent in self.agents]
+            [agent.pre_episode() for agent in self.enabled_agents()]
             while not c.frame_done:
                 c.frame_id = c.total_steps
-                [agent.pre_act() for agent in self.agents]
-                actions = [agent.act() for agent in self.agents]
+                [agent.pre_act() for agent in self.enabled_agents()]
+                actions = [agent.act() for agent in self.enabled_agents()]
                 actions = list(filter(lambda x: x is not None, actions))
                 if len(actions) == 0:
                     logger.error(
@@ -327,10 +387,10 @@ class RLRunner:
                         "No agent returned any action! The environment cannot be stepped")
                 c.frame_action = actions[-1]
                 c.frame_obs_next, c.frame_reward, c.frame_done, c.frame_info = self.env.step(c.frame_action)
-                [agent.post_act() for agent in self.agents]
+                [agent.post_act() for agent in self.enabled_agents()]
                 c.frame_obs = c.frame_obs_next
             c.log_stats(average_over=100, end='\n' if c.episode_id % c.video_interval == 0 else '\r')
-            [agent.post_episode() for agent in self.agents]
+            [agent.post_episode() for agent in self.enabled_agents()]
 
         logger.log('-------------------Done--------------------')
         c.log_stats(average_over=c.n_episodes)

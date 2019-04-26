@@ -1,13 +1,13 @@
-from RL.common import logger
+import RL
 import tensorflow as tf
 
 
 class Summaries:
     def __init__(self, session: tf.Session):
-        logger.log("Setting up summaries")
+        RL.logger.log("Setting up summaries")
         self.session = session
         self.writer = tf.summary.FileWriter(
-            logger.get_dir(), self.session.graph)
+            RL.logger.get_dir(), self.session.graph)
 
     def setup_scalar_summaries(self, keys):
         for k in keys:
@@ -43,5 +43,5 @@ class Summaries:
                 })
                 self.writer.add_summary(summary, global_step=global_step)
             else:
-                logger.log("Invalid summary key {0}".format(
-                    key), level=logger.WARN)
+                RL.logger.log("Invalid summary key {0}".format(
+                    key), level=RL.logger.WARN)

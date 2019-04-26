@@ -62,12 +62,7 @@ class DQNAgent(Agent):
             self.target_brain, soft_copy=True, name='{0}/target_brain_soft_update_op'.format(self.name))
 
     def create_experience_buffer(self):
-        if self.context.experience_buffer_megabytes is None:
-            self.experience_buffer = ExperienceBuffer(
-                length=self.context.experience_buffer_length)
-        else:
-            self.experience_buffer = ExperienceBuffer(
-                size_in_bytes=self.context.experience_buffer_megabytes * (1024**2))
+        self.experience_buffer = ExperienceBuffer(length=self.context.experience_buffer_length, size_in_bytes=self.context.experience_buffer_megabytes * (1024**2))
         self.nstep_buffer = []  # type: List[Experience]
 
     def start(self):

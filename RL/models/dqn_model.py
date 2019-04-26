@@ -3,12 +3,9 @@ from enum import Enum
 import gym  # noqa: F401
 import tensorflow as tf
 import numpy as np
-import os
-import joblib
 
-from RL.common.context import Context
-from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_scale, tf_safe_softmax
-from RL.common import logger
+import RL
+from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_scale, tf_safe_softmax, need_conv_net
 
 
 class Brain:
@@ -33,7 +30,7 @@ class Brain:
         # tc_training_step = "tc_training_step"
         summaries = "summaries"
 
-    def __init__(self, context: Context, name, is_target, head_names):
+    def __init__(self, context: RL.Context, name, is_target, head_names):
         self.context = context
         self.name = name
         self._is_target = is_target
@@ -45,7 +42,6 @@ class Brain:
             self._setup_model()
             if not self._is_target:
                 self._setup_training()
-                self._setup_saving_loading_ops()
 
     def get_head_id(self, head_name):
         if not hasattr(self, "_head_names_to_id_map"):
@@ -73,16 +69,17 @@ class Brain:
                     if not self._is_target:
                         self._Q_input_sensitivities.append(self._tf_Q_input_sensitivity(
                             self._Vs[head_id], self._states_placeholder))
+            self.params = self.get_vars('')
             # if not self._is_target:
             #     self._actions_placeholder = self._tf_actions_placeholder()
-                # self._next_states_placeholder = self._tf_states_placeholder(
-                #     Brain.Scopes.next_states_placeholder.value)
-                # self._next_states_normalized = self._states_rms.normalize(
-                #     self._next_states_placeholder)
-                # self._next_states_embeddings = self._tf_states_embeddings(
-                #     self._next_states_normalized)
-                # self._transition_classification = self._tf_transition_classification(
-                #     self._states_embeddings, self._actions_placeholder, self._next_states_embeddings)
+            # self._next_states_placeholder = self._tf_states_placeholder(
+            #     Brain.Scopes.next_states_placeholder.value)
+            # self._next_states_normalized = self._states_rms.normalize(
+            #     self._next_states_placeholder)
+            # self._next_states_embeddings = self._tf_states_embeddings(
+            #     self._next_states_normalized)
+            # self._transition_classification = self._tf_transition_classification(
+            #     self._states_embeddings, self._actions_placeholder, self._next_states_embeddings)
 
     def _setup_training(self):
         with tf.variable_scope(Brain.Scopes.training.value):
@@ -126,17 +123,6 @@ class Brain:
             # self._tc_training_step = tf_training_step(self._transition_classification_loss, self._tc_trainable_vars,
             #                                           self._tc_optimizer, self.context.l2_reg, self.context.clip_gradients, Brain.Scopes.tc_training_step.value)
 
-    def _setup_saving_loading_ops(self):
-        with tf.variable_scope('saving_loading_ops'):
-            params = self.get_vars('')
-            self._load_placeholders = []
-            self._load_ops = []
-            for p in params:
-                p_placeholder = tf.placeholder(
-                    shape=p.shape.as_list(), dtype=tf.float32)
-                self._load_placeholders.append(p_placeholder)
-                self._load_ops.append(p.assign(p_placeholder))
-
     def _tf_states_placeholder(self, name):
         with tf.variable_scope(name):
             placeholder = tf.placeholder(dtype=self.context.env.observation_space.dtype, shape=[
@@ -154,17 +140,17 @@ class Brain:
 
     def _tf_states_embeddings(self, inputs):
         with tf.variable_scope(Brain.Scopes.states_embeddings.value, reuse=tf.AUTO_REUSE):
-            return auto_conv_dense_net(self.context.need_conv_net, inputs, self.context.convs, self.context.states_embedding_hidden_layers, self.context.activation_fn, None, None, "conv_dense_net")
+            return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), inputs, self.context.convs, self.context.states_embedding_hidden_layers, self.context.activation_fn, None, None, "conv_dense_net")
 
     def _tf_Q(self, inputs):
         with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=tf.AUTO_REUSE):
             if not self.context.dueling_dqn:
-                Q = dense_net(inputs, self.context.Q_hidden_layers, self.context.activation_fn,
+                Q = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
                               self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
             else:
-                A_dueling = dense_net(inputs, self.context.Q_hidden_layers, self.context.activation_fn,
+                A_dueling = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
                                       self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
-                V_dueling = dense_net(inputs, self.context.Q_hidden_layers,
+                V_dueling = dense_net(inputs, self.context.hidden_layers,
                                       self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
                 Q = V_dueling + A_dueling - \
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
@@ -257,36 +243,6 @@ class Brain:
     def get_perturbable_vars(self, scope):
         return [v for v in self.get_vars(scope) if not('LayerNorm' in v.name or 'batch_norm' in v.name or 'rms' in v.name)]
 
-    def _tf_scope_copy_to(self, other_brain, scope, name, soft_copy=False):
-        with tf.variable_scope(name):
-            other_brain = other_brain  # type: Brain
-            my_vars = self.get_vars(scope)
-            other_brain_vars = other_brain.get_vars(scope)
-            assert len(my_vars) == len(
-                other_brain_vars), "Something is wrong! Both brains should have same number of vars in scope {0}".format(scope)
-            if len(my_vars) == 0:
-                logger.warn(
-                    "Warning: There are no variables in scope {0}!".format(scope))
-            copy_ops = []
-            for my_var, other_var in zip(my_vars, other_brain_vars):
-                copy_op = tf.assign(other_var, my_var * self.context.target_network_update_tau + (
-                    1 - self.context.target_network_update_tau) * other_var) if soft_copy else tf.assign(other_var, my_var)
-                copy_ops.append(copy_op)
-            return copy_ops
-
-    def tf_copy_to(self, other_brain, soft_copy=False, name='copy_brain_ops'):
-        with tf.variable_scope(name):
-            Q_copy = []
-            for head_name in self.head_names:
-                Q_copy.append(self._tf_scope_copy_to(
-                    other_brain, head_name + "/" + Brain.Scopes.Q_network.value, "Q_params_copy", soft_copy=soft_copy))
-            embeddings_copy = self._tf_scope_copy_to(
-                other_brain, Brain.Scopes.states_embeddings.value, "states_embs_params_copy", soft_copy=soft_copy)
-            rms_copy = self._tf_scope_copy_to(
-                other_brain, Brain.Scopes.states_rms.value, "states_rms_vars_copy", soft_copy=False)
-            all_ops = Q_copy + embeddings_copy + rms_copy
-            return all_ops
-
     def update_running_stats(self, states):
         for i in range(len(states)):
             state = states[i]
@@ -315,15 +271,13 @@ class Brain:
         Q_mpes = results[2 + self.num_heads:2 + 2 * self.num_heads]
         Vs = results[2 + 2 * self.num_heads:]
         for head_name, Q_loss, Q_mpe, V in zip(self.head_names, Q_losses, Q_mpes, Vs):
-            mb_av_V_summary_name = "{0}/{1}/mb_av_V".format(self.name, head_name)
-            Q_loss_summary_name = "{0}/{1}/Q_loss".format(self.name, head_name)
-            Q_mpe_summary_name = "{0}/{1}/Q_mpe".format(self.name, head_name)
-            if self.Q_updates == 1:
-                self.context.summaries.setup_scalar_summaries(
-                    [mb_av_V_summary_name, Q_loss_summary_name, Q_mpe_summary_name])
             if self.Q_updates % 10 == 0:
-                self.context.log_summary({mb_av_V_summary_name: np.mean(
-                    V), Q_loss_summary_name: Q_loss, Q_mpe_summary_name: Q_mpe}, self.context.frame_id)
+                mb_av_V_summary_name = "{0}/{1}/mb_av_V".format(self.name, head_name)
+                Q_loss_summary_name = "{0}/{1}/Q_loss".format(self.name, head_name)
+                Q_mpe_summary_name = "{0}/{1}/Q_mpe".format(self.name, head_name)
+                RL.stats.record_append(mb_av_V_summary_name, np.mean(V))
+                RL.stats.record_append(Q_loss_summary_name, Q_loss)
+                RL.stats.record_append(Q_mpe_summary_name, Q_mpe)
         return combined_loss, Q_losses, Q_mpes
 
     def train_transitions(self, mb_states, mb_actions, mb_next_states, mb_desired_tc):
@@ -342,20 +296,3 @@ class Brain:
                 np.argmax(mb_desired_tc, axis=-1), np.argmax(tc, axis=-1)).astype(np.int))
             self.context.log_summary(
                 {"mb_av_tc": np.mean(np.argmax(tc, -1)), "tc_loss": loss, "tc_accuracy": tc_accuracy}, self.tc_updates)
-
-    def save(self, save_path=None, filename='model'):
-        if save_path is None:
-            save_path = os.path.join(
-                logger.get_dir(), "saved_models", filename)
-        params = self.context.session.run(self.get_vars(''))
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        joblib.dump(params, save_path)
-
-    def load(self, load_path=None, filename='model'):
-        if load_path is None:
-            load_path = os.path.join(self.context.load_model_dir, filename)
-        params = joblib.load(load_path)
-        feed_dict = {}
-        for p, p_placeholder in zip(params, self._load_placeholders):
-            feed_dict[p_placeholder] = p
-        self.context.session.run(self._load_ops, feed_dict=feed_dict)
