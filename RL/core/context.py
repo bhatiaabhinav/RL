@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 import RL
+from RL.common.summaries import Summaries
 import gym
 
 
@@ -84,6 +85,7 @@ class Context:
         np.set_printoptions(precision=self.np_print_precision)
         # tf session
         self.session = None  # type: tf.Session
+        self.summaries = None  # type: Summaries
         # logdir config
         self.logdir = self._find_available_logdir(self.logdir, self.env_id, self.experiment_name)
         os.putenv('OPENAI_LOGDIR', self.logdir)

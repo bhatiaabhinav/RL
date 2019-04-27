@@ -68,11 +68,11 @@ class LinearFrameStackWrapper(gym.Wrapper):
             self.k = k
         else:
             self.k = LinearFrameStackWrapper.k
-        self.frames = deque([], maxlen=k)
+        self.frames = deque([], maxlen=self.k)
         space = env.observation_space  # type: gym.spaces.Box
         assert len(space.shape) == 1  # can only stack 1-D frames
         self.observation_space = gym.spaces.Box(
-            low=np.array(list(space.low) * k), high=np.array(list(space.high) * k))
+            low=np.array(list(space.low) * self.k), high=np.array(list(space.high) * self.k))
 
     def reset(self):
         """Clear buffer and re-fill by duplicating the first observation."""

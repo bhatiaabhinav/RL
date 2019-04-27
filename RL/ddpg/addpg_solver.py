@@ -265,13 +265,13 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
 
     logdir_last_part = os.path.basename(os.path.normpath(logger.get_dir()))
     window_name = env_id + ":" + logdir_last_part
-    action_renderer = PlotRenderer(title='Episode average action', xlabel='base_id',
-                                   ylabel='Action', window_caption=window_name, concat_title_with_caption=False, auto_save=True, save_path=os.path.join(logger.get_dir(), 'action.png'))
-    action_renderer.plot(list(range(env.action_space.shape[0])), [
-                         0] * env.action_space.shape[0])
-    score_renderer = PlotRenderer(title='Average Reward per Episode', xlabel='Episode',
-                                  ylabel='Reward', window_caption=window_name, concat_title_with_caption=False, smoothing=100, auto_save=True, save_path=os.path.join(logger.get_dir(), 'Reward.png'))
-    score_renderer.plot([], [], 'b-', [], [], 'g--')
+    # action_renderer = PlotRenderer(title='Episode average action', xlabel='base_id',
+    #                                ylabel='Action', window_caption=window_name, concat_title_with_caption=False, auto_save=True, save_path=os.path.join(logger.get_dir(), 'action.png'))
+    # action_renderer.plot(list(range(env.action_space.shape[0])), [
+    #                      0] * env.action_space.shape[0])
+    # score_renderer = PlotRenderer(title='Average Reward per Episode', xlabel='Episode',
+    #                               ylabel='Reward', window_caption=window_name, concat_title_with_caption=False, smoothing=100, auto_save=True, save_path=os.path.join(logger.get_dir(), 'Reward.png'))
+    # score_renderer.plot([], [], 'b-', [], [], 'g--')
     Rs, exploit_Rs, exploit_blip_Rs, f = [], [], [], 0
     env.seed(learning_env_seed if learning else test_env_seed)
 
@@ -329,11 +329,11 @@ def ddpg(sys_args_dict, sess, env_id, wrappers, learning=False, actor=None, seed
         logger.dump_tabular()
         ep_av_a = ep_sum_a * env.metadata.get('nresources', 1) / ep_l
         logger.log('Average action: {0}'.format(ep_av_a))
-        score_renderer.append([exploit_Rs[-1], Rs[-1]])
-        action_renderer.update([[list(range(env.action_space.shape[0])), ep_av_a]])
+        # score_renderer.append([exploit_Rs[-1], Rs[-1]])
+        # action_renderer.update([[list(range(env.action_space.shape[0])), ep_av_a]])
         if render_graphs:
             score_renderer.render()
-            action_renderer.render()
+            # action_renderer.render()
         model.summaries.write_summaries(
             {'R': R, 'R_exploit': exploit_Rs[-1], 'blip_R_exploit': exploit_blip_Rs[-1], 'ep_length': ep_l, 'ep_av_action': ep_av_a}, ep)
         if save_path and ep % save_every == 0:

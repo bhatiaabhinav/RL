@@ -29,3 +29,6 @@ class Agent:
 
     def close(self):
         pass
+
+    def post_close(self):
+        pass

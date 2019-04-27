@@ -136,6 +136,7 @@ class Runner:
                 self.num_episodess[need_reset_env_id_nos] = self.num_episodess[need_reset_env_id_nos] + 1
         logger.log('-------------------Done--------------------')
         [agent.close() for agent in self.agents]
+        [agent.post_close() for agent in self.agents]
         [env.close() for env in self.envs]
 
         # for c.episode_id in range(c.n_episodes):

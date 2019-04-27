@@ -3,6 +3,7 @@ from RL.models.dqn_model import Brain
 from .base_pyglet_rendering_agent import BasePygletRenderingAgent
 import numpy as np
 from PIL import Image
+from RL.common.utils import need_conv_net
 
 
 class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
@@ -13,7 +14,7 @@ class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
 
     def render(self):
         context = self.context
-        frame = self.model.get_Q_input_sensitivity([context.frame_obs])[self.head_id][0]
+        frame = self.model.get_Q_input_sensitivity([self.runner.obs])[self.head_id][0]
         channels = frame.shape[2]
         frame = np.dot(frame.astype('float32'), np.ones([channels]) / channels)
         frame = np.expand_dims(frame, 2)
@@ -27,5 +28,5 @@ class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
         self.window.set_image(mixed.astype(np.uint8), self.auto_dispatch_on_render)
 
     def start(self):
-        if self.context.need_conv_net:
+        if need_conv_net(self.context.env.observation_space):
             super().start()
