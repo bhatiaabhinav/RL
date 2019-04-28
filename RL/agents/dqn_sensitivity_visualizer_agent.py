@@ -7,7 +7,7 @@ from RL.common.utils import need_conv_net
 
 
 class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
-    def __init__(self, context: RL.Context, name, dqn_model: Brain, head_id=0, auto_dispatch_on_render=True, episode_interval=1):
+    def __init__(self, context: RL.Context, name, dqn_model: Brain, head_id=0, auto_dispatch_on_render=True, episode_interval=None):
         super().__init__(context, name, auto_dispatch_on_render, episode_interval)
         self.model = dqn_model  # type: Brain
         self.head_id = head_id

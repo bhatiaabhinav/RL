@@ -106,7 +106,7 @@ class Brain:
                         self._Q_losses[head_id]
             # optimize:
             self._optimizer = tf.train.AdamOptimizer(
-                self.context.learning_rate)
+                self.context.learning_rate, epsilon=self.context.adam_epsilon)
             self._trainable_vars = self.get_trainable_vars(
                 Brain.Scopes.states_embeddings.value)
             for head_id in range(self.num_heads):
@@ -138,20 +138,20 @@ class Brain:
                                          None] + [self.context.env.action_space.n])
             return placeholder
 
-    def _tf_states_embeddings(self, inputs):
-        with tf.variable_scope(Brain.Scopes.states_embeddings.value, reuse=tf.AUTO_REUSE):
-            return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), inputs, self.context.convs, self.context.states_embedding_hidden_layers, self.context.activation_fn, None, None, "conv_dense_net")
+    def _tf_states_embeddings(self, inputs, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(Brain.Scopes.states_embeddings.value, reuse=reuse):
+            return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), inputs, self.context.convs, self.context.states_embedding_hidden_layers, self.context.activation_fn, None, None, "conv_dense_net", reuse=reuse)
 
-    def _tf_Q(self, inputs):
-        with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=tf.AUTO_REUSE):
+    def _tf_Q(self, inputs, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=reuse):
             if not self.context.dueling_dqn:
                 Q = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
+                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
             else:
                 A_dueling = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
+                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
                 V_dueling = dense_net(inputs, self.context.hidden_layers,
-                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3))
+                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
                 Q = V_dueling + A_dueling - \
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
             return Q

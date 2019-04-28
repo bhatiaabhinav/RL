@@ -21,14 +21,16 @@ class Context:
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
     hidden_layers = [512]  # hidden layers
-    n_episodes = 10000
-    experience_buffer_length = 100000
+    num_episodes_to_run = int(5e7)
+    num_steps_to_run = int(5e7)
+    num_envs_to_make = 1
+    experience_buffer_length = int(1e6)
     experience_buffer_megabytes = None
-    minimum_experience = 20000  # in frames, before learning can begin
+    minimum_experience = 50000  # in frames, before learning can begin
     epsilon = 1  # for epislon-greedy action selection during exploration
     final_epsilon = 0.01  # anneal epsilon for epislon-greedy action selection during exploration to this value
     exploit_epsilon = 0.001  # for epislon-greedy action selection during exploitation
-    epsilon_anneal_over = 50000
+    epsilon_anneal_over = 62500
     train_every = 4  # one sgd step every this many frames
     # target network updated every this many frames
     target_network_update_every = 4
@@ -37,6 +39,7 @@ class Context:
     nsteps = 3  # n-step TD learning
     max_depth = 5  # max_depth for look ahead planning
     learning_rate = 1e-3
+    adam_epsilon = 1e-8
     actor_learning_rate = 1e-4
     double_dqn = False
     dueling_dqn = False
@@ -46,7 +49,7 @@ class Context:
     clip_td_error = False
     video_interval = 50  # every these many episodes, video recording will be done
     save_every = 100  # every these many episodes, save a model
-    exploit_every = 4  # every these many episodes, agent will play without exploration
+    exploit_every = 8  # every these many episodes, agent will play without exploration
     rnd_mode = False  # whether to use rnd intrinsic reward system
     rnd_num_features = 64  # predict these many random features of obs
     rnd_layers = [128]  # architecture of the rnd_predictor network
@@ -66,6 +69,7 @@ class Context:
     load_model_dir = None
     atari_framestack_k = 4
     atari_frameskip_k = 4
+    atari_noop_max = 30
     atari_clip_rewards = True
     atari_episode_life = True
     lunar_no_crash_penalty_main_stream = False

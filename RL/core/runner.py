@@ -7,13 +7,17 @@ import numpy as np
 
 class Runner:
     '''runs the registered agents on the gym environments in the context. The env stepping logic is synchronous. And an agent is provided feedback from all envs simulatenously and must provide actions for all envs'''
-    def __init__(self, context: Context, name, num_steps_to_run, num_episodes_to_run):
+    def __init__(self, context: Context, name, num_steps_to_run=None, num_episodes_to_run=None):
         self.name = name
         self.context = context
         self.agents = []  # type: List[Agent]
         self.envs = self.context.envs
         self.num_steps_to_run = num_steps_to_run
         self.num_episodes_to_run = num_episodes_to_run
+        if self.num_steps_to_run is None:
+            self.num_steps_to_run = self.context.num_steps_to_run
+        if self.num_episodes_to_run is None:
+            self.num_episodes_to_run = self.context.num_episodes_to_run
         self.num_stepss = np.array([0] * self.num_envs)
         self.num_episodess = np.array([0] * self.num_envs)
         self.prev_obss = [None] * self.num_envs

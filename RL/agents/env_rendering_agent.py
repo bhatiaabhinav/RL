@@ -3,7 +3,7 @@ from .base_pyglet_rendering_agent import BasePygletRenderingAgent
 
 
 class EnvRenderingAgent(BasePygletRenderingAgent):
-    def __init__(self, context: RL.Context, name, auto_dispatch_on_render=True, episode_interval=1):
+    def __init__(self, context: RL.Context, name, auto_dispatch_on_render=True, episode_interval=None):
         super().__init__(context, name, auto_dispatch_on_render=auto_dispatch_on_render, episode_interval=episode_interval)
         self.text_mode = 'ansi' in self.context.env.metadata.get('render.modes', [])
 

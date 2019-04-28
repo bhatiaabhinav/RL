@@ -3,13 +3,13 @@ from collections import deque
 import gym
 import numpy as np
 
-from RL.common import logger
+import RL
 from RL.common.utils import ImagePygletWingow
 
 
 class DummyWrapper(gym.Wrapper):
     def __init__(self, env):
-        logger.log("Wrapping with", str(type(self)))
+        RL.logger.log("Wrapping with", str(type(self)))
         super().__init__(env)
 
     def reset(self):
@@ -21,7 +21,7 @@ class DummyWrapper(gym.Wrapper):
 
 class DummyWrapper2(gym.Wrapper):
     def __init__(self, env):
-        logger.log("Wrapping with", str(type(self)))
+        RL.logger.log("Wrapping with", str(type(self)))
         super().__init__(env)
 
     def reset(self):
@@ -148,7 +148,7 @@ class RenderWrapper(gym.Wrapper):
         try:
             self.window = ImagePygletWingow(caption=caption, vsync=vsync)
         except Exception as e:
-            logger.error(
+            RL.logger.error(
                 "RenderWrapper: Could not create window. Reason = {0}".format(str(e)))
         self.ep_id = 0
         self.render_interval = render_interval

@@ -4,12 +4,14 @@ from RL.common.utils import TFParamsSaverLoader
 
 
 class ModelLoaderSaverAgent(RL.Agent):
-    def __init__(self, context: RL.Context, name, params, save_dir, load_dir, filename='model'):
+    def __init__(self, context: RL.Context, name, params, load_dir=None, save_sub_dir='models', filename='model'):
         super().__init__(context, name)
         self.loader_saver = TFParamsSaverLoader(name, params, self.context.session)
         self.filename = filename
         self.load_dir = load_dir
-        self.save_dir = save_dir
+        self.save_dir = os.path.join(RL.logger.get_dir(), save_sub_dir)
+        if self.load_dir is None:
+            self.load_dir = self.context.load_model_dir
 
     def load_model(self):
         if self.load_dir is not None:

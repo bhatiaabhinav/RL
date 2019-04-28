@@ -19,3 +19,4 @@ from .player_turn_coordination_agent import PlayerTurnCoordinationAgent  # noqa:
 from .basic_stats_recording_agent import BasicStatsRecordingAgent  # noqa: F401
 from .stats_logging_agent import StatsLoggingAgent  # noqa: F401
 from .linear_annealing_agent import LinearAnnealingAgent  # noqa: F401
+from .tensorboard_agent import TensorboardAgent  # noqa: F401

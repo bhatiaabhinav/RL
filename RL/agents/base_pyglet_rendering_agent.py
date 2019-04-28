@@ -3,12 +3,14 @@ from RL.common.utils import ImagePygletWingow
 
 
 class BasePygletRenderingAgent(RL.Agent):
-    def __init__(self, context: RL.Context, name, auto_dispatch_on_render=True, episode_interval=1):
+    def __init__(self, context: RL.Context, name, auto_dispatch_on_render=True, episode_interval=None):
         super().__init__(context, name)
         self.vsync = context.render_vsync
         self.window = None
         self.auto_dispatch_on_render = auto_dispatch_on_render
         self.episode_interval = episode_interval
+        if self.episode_interval is None:
+            self.episode_interval = self.context.render_interval
 
     def render(self):
         pass

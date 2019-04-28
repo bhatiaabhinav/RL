@@ -15,7 +15,7 @@ from keras.layers import Activation, BatchNormalization, Dense
 from keras.models import Sequential
 from keras.optimizers import Adam
 
-from RL.common import logger
+import RL
 
 
 class ImagePygletWingow(pyglet.window.Window):
@@ -94,7 +94,7 @@ class SimpleImageViewer(object):
         except Exception as e:
             self.window = None
             self._failed = True
-            logger.warn("Could not create window: {0}".format(e))
+            RL.logger.warn("Could not create window: {0}".format(e))
 
         if not self._failed:
             self.isopen = True
@@ -170,10 +170,8 @@ class GridImageViewer(object):
 
     def imshow(self, arr_list):
         if self.window is None and not self._failed:
-            height = int(np.mean([arr.shape[0] for arr in arr_list])
-                         * self.n_vertical + self.padding * (self.n_vertical + 1))
-            width = int(np.mean([arr.shape[1] for arr in arr_list]) *
-                        self.n_horizontal + self.padding * (self.n_horizontal + 1))
+            height = int(np.mean([arr.shape[0] for arr in arr_list]) * self.n_vertical + self.padding * (self.n_vertical + 1))
+            width = int(np.mean([arr.shape[1] for arr in arr_list]) * self.n_horizontal + self.padding * (self.n_horizontal + 1))
             if self.height is None:
                 self.height = height
             if self.width is None:
@@ -184,7 +182,7 @@ class GridImageViewer(object):
             except Exception as e:
                 self.window = None
                 self._failed = True
-                logger.warn("Could not create window: {0}".format(e))
+                RL.logger.warn("Could not create window: {0}".format(e))
 
             if not self._failed:
                 self.isopen = True
@@ -696,7 +694,7 @@ class TFParamsCopier:
         self.ZERO_NOISE = self.generate_zero_noise()
         assert len(params_from) == len(params_to), "Number of params not same"
         if len(params_from) == 0:
-            logger.warn("No params to copy")
+            RL.logger.warn("No params to copy")
         with tf.variable_scope(name):
             self.tau, _ = tf_inputs(None, tf.float32, "tau")
             self.copy_ops = []
@@ -811,7 +809,7 @@ class FFNN_TF(Model):
                     self.load_ops.append(p.assign(p_placeholder))
 
             self.writer = tf.summary.FileWriter(
-                logger.get_dir(), self.session.graph)
+                RL.logger.get_dir(), self.session.graph)
 
     def predict(self, x):
         return self.session.run(self.outputs, feed_dict={

@@ -354,12 +354,12 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True):
     return env
 
 
-def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True, framestack_k=4, frameskip_k=4):
+def wrap_deepmind_with_framestack(env, episode_life=True, clip_rewards=True, framestack_k=4, frameskip_k=4, noop_max=30):
     """Configure environment for DeepMind-style Atari."""
     assert 'NoFrameskip' in env.spec.id  # required for DeepMind-style skip
     if episode_life:
         env = EpisodicLifeEnv(env)
-    env = NoopResetEnv(env, noop_max=30)
+    env = NoopResetEnv(env, noop_max=noop_max)
     env = MaxAndSkipEnv(env, skip=frameskip_k)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
