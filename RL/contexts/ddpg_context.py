@@ -5,11 +5,11 @@ class DDPGContext(RL.Context):
     double_dqn = False
     minibatch_size = 64
     experience_buffer_length = int(1e6)
-    target_network_update_every = 4  # 8K Steps i.e 32K Frames
+    target_network_update_every = 1  # 8K Steps i.e 32K Frames
     target_network_update_tau = 0.001
     gamma = 0.99
     nsteps = 1
-    train_every = 4
+    train_every = 1
     learning_rate = 1e-3
     actor_learning_rate = 1e-4
     l2_reg = 1e-2
