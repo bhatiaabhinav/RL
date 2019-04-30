@@ -12,9 +12,10 @@ class DDPGTrainAgent(RL.Agent):
         self.experience_buffer_agent = exp_buffer_agent
         self.target_model = DDPGModel(context, "{0}/target_model".format(name))
         self.ddpg_act_agent.model.setup_training("{0}/training_ops".format(name))
+        self.total_updates = 0
 
     def pre_act(self):
-        self.ddpg_act_agent.model.update_states_running_stats([self.context.frame_obs])
+        self.ddpg_act_agent.model.update_states_running_stats(self.runner.obss)
 
     def get_target_network_V(self, states):
         actions = self.ddpg_act_agent.exploit_policy(self.ddpg_act_agent.model if self.context.double_dqn else self.target_model, states)
@@ -31,11 +32,19 @@ class DDPGTrainAgent(RL.Agent):
             td_errors = desired_Q_values - Q
             td_errors = np.clip(-1, 1)
             desired_Q_values = Q + td_errors
-        self.ddpg_act_agent.model.train_critic(states, actions, desired_Q_values)
-        self.ddpg_act_agent.model.train_actor(states)
+        critic_loss = self.ddpg_act_agent.model.train_critic(states, actions, desired_Q_values)
+        actor_loss = self.ddpg_act_agent.model.train_actor(states)
+        return critic_loss, actor_loss
 
     def post_act(self):
         c = self.context
-        self.ddpg_act_agent.model.update_actions_running_stats([c.frame_action])
-        if c.frame_id % c.train_every == 0 and c.frame_id >= c.minimum_experience:
-            self.train()
+        self.ddpg_act_agent.model.update_actions_running_stats(self.runner.actions)
+        if self.runner.step_id % c.train_every == 0 and self.runner.step_id >= c.minimum_experience:
+            critic_loss, actor_loss = 0, 0
+            for sgd_step_id in range(self.context.gradient_steps):
+                critic_loss, actor_loss = self.train()
+            self.total_updates += self.context.gradient_steps
+            if self.runner.step_id % 10 == 0:
+                RL.stats.record_append("Total Updates", self.total_updates)
+                RL.stats.record_append("Critic Loss", critic_loss)
+                RL.stats.record_append("Actor Loss", actor_loss)

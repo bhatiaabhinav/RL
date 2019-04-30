@@ -16,6 +16,7 @@ class DQNContext(RL.Context):
     nsteps = 3
     atari_frameskip_k = 4
     train_every = 4
+    gradient_steps = 1
     learning_rate = 6.25e-5
     adam_epsilon = 1e-8
     epsilon = 1

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import RL
-from RL.common.utils import tf_inputs, TfRunningStats, auto_conv_dense_net, dense_net, tf_training_step, tf_scale
+from RL.common.utils import tf_inputs, TfRunningStats, auto_conv_dense_net, dense_net, tf_training_step, tf_scale, need_conv_net
 import gym
 
 
@@ -46,13 +46,13 @@ class DDPGModel:
         return y
 
     def tf_actor(self, states, name, reuse=tf.AUTO_REUSE):
-        return auto_conv_dense_net(self.context.need_conv_net, states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, self.action_space.shape[0], self.tf_actor_activation_fn, name, reuse=reuse)
+        return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, self.action_space.shape[0], self.tf_actor_activation_fn, name, output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
 
     def tf_critic(self, states, actions, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
-            states_to_one_hidden = auto_conv_dense_net(self.context.need_conv_net, states, self.context.convs, self.context.hidden_layers[:1], self.context.activation_fn, None, None, "one_hidden", reuse=reuse)
+            states_to_one_hidden = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers[:1], self.context.activation_fn, None, None, "one_hidden", reuse=reuse)
             one_hidden_plus_actions = tf.concat(values=[states_to_one_hidden, actions], axis=1, name="concat")
-            return dense_net(one_hidden_plus_actions, self.context.hidden_layers[1:], self.context.activation_fn, 1, lambda x: x, "Q", reuse=reuse)[0]
+            return dense_net(one_hidden_plus_actions, self.context.hidden_layers[1:], self.context.activation_fn, 1, lambda x: x, "Q", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)[:, 0]
 
     def get_vars(self, scope=''):
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='{0}/{1}'.format(self.name, scope))
@@ -78,7 +78,7 @@ class DDPGModel:
             self._update_states_running_stats = self._states_running_stats.update(self._states_placeholder[0], "update_states_running_stats")
             self._update_actions_running_stats = self._actions_running_stats.update(self._actions_placeholder[0], "update_actions_running_stats")
             # actor training
-            self._actor_loss = -self._actor_critic_Q
+            self._actor_loss = -tf.reduce_mean(self._actor_critic_Q)
             actor_trainable_vars = self.get_trainable_vars('actor')
             actor_optimizer = tf.train.AdamOptimizer(self.context.actor_learning_rate)
             assert len(actor_trainable_vars) > 0, "No vars to train!"

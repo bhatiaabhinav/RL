@@ -146,12 +146,12 @@ class Brain:
         with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=reuse):
             if not self.context.dueling_dqn:
                 Q = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
+                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
             else:
                 A_dueling = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
+                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
                 V_dueling = dense_net(inputs, self.context.hidden_layers,
-                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-1e-3, maxval=1e-3), reuse=reuse)
+                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
                 Q = V_dueling + A_dueling - \
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
             return Q
@@ -278,6 +278,7 @@ class Brain:
                 RL.stats.record_append(mb_av_V_summary_name, np.mean(V))
                 RL.stats.record_append(Q_loss_summary_name, Q_loss)
                 RL.stats.record_append(Q_mpe_summary_name, Q_mpe)
+                RL.stats.record_append("Q Updates", self.Q_updates)
         return combined_loss, Q_losses, Q_mpes
 
     def train_transitions(self, mb_states, mb_actions, mb_next_states, mb_desired_tc):

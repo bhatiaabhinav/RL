@@ -65,4 +65,5 @@ class DQNTrainAgent(RL.Agent):
         r = self.runner
         c = self.context
         if r.step_id % c.train_every == 0 and r.step_id >= c.minimum_experience:
-            self.train()
+            for sgd_step_id in range(c.gradient_steps):
+                self.train()

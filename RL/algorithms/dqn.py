@@ -49,7 +49,7 @@ for env_id_no in range(c.num_envs):
     keys = list(filter(lambda k: k.startswith('Env-' + str(env_id_no)), RL.stats.stats_dict.keys()))
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
-misc_keys = ['epsilon', 'Q_loss:DQNActAgent/main_brain/default/Q_loss', 'Q_mpe:DQNActAgent/main_brain/default/Q_mpe', 'mb_av_V:DQNActAgent/main_brain/default/mb_av_V']
+misc_keys = ['epsilon', 'Q_loss:DQNActAgent/main_brain/default/Q_loss', 'Q_mpe:DQNActAgent/main_brain/default/Q_mpe', 'mb_av_V:DQNActAgent/main_brain/default/mb_av_V', 'Q Updates']
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
 

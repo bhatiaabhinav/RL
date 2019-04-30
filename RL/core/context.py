@@ -20,6 +20,7 @@ class Context:
     eval_mode = False
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
+    init_scale = 1
     hidden_layers = [512]  # hidden layers
     num_episodes_to_run = int(5e7)
     num_steps_to_run = int(5e7)
@@ -31,7 +32,10 @@ class Context:
     final_epsilon = 0.01  # anneal epsilon for epislon-greedy action selection during exploration to this value
     exploit_epsilon = 0.001  # for epislon-greedy action selection during exploitation
     epsilon_anneal_over = 62500
-    train_every = 4  # one sgd step every this many frames
+    param_noise_divergence = 0.2
+    param_noise_adaptation_factor = 1.01
+    train_every = 4  # gradient steps every this many steps
+    gradient_steps = 1
     # target network updated every this many frames
     target_network_update_every = 4
     target_network_update_tau = 0.001  # ddpg style target network (soft) update step size
