@@ -14,5 +14,5 @@ class ParamsCopyAgent(RL.Agent):
         self.copier.copy()
 
     def post_act(self):
-        if self.runner.step_id % self.interval == 0:
+        if self.runner.num_steps >= self.context.minimum_experience and self.runner.step_id % self.interval == 0:
             self.copier.copy(tau=self.tau)

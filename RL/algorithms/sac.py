@@ -1,19 +1,19 @@
 import gym
 
 import RL
-from RL.agents import (BasicStatsRecordingAgent, DDPGActAgent,  # noqa: F401
-                       DDPGTrainAgent, EnvRenderingAgent,
+from RL.agents import (BasicStatsRecordingAgent, SACActAgent,  # noqa: F401
+                       SACTrainAgent, EnvRenderingAgent,
                        ExperienceBufferAgent, ModelLoaderSaverAgent,
-                       ParamNoiseAgent, ParamsCopyAgent, PygletLoopAgent,
+                       ParamsCopyAgent, PygletLoopAgent,
                        SeedingAgent, StatsLoggingAgent, TensorboardAgent,
                        TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.common.wrappers import MaxEpisodeStepsWrapper
-from RL.contexts import DDPGContext
-from RL.models.ddpg_model import DDPGModel
+from RL.contexts import SACContext
 
-c = DDPGContext()
+
+c = SACContext()
 
 
 def make(id):
@@ -34,13 +34,12 @@ r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
 
 # core algo
-ddpg_act_agent = r.register_agent(DDPGActAgent(c, "DDPGActAgent"))
-r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", ddpg_act_agent.model.params))
+sac_act_agent = r.register_agent(SACActAgent(c, "SACActAgent"))
+r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", sac_act_agent.model.params))
 if not c.eval_mode:
-    r.register_agent(ParamNoiseAgent(c, "ParamNoiseAgent", DDPGModel(c, "ParamNoiseAgent/noisy_model", num_critics=c.num_critics), ddpg_act_agent.model))
     exp_buff_agent = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent"))
-    ddpg_train_agent = r.register_agent(DDPGTrainAgent(c, "DDPGTrainAgent", ddpg_act_agent, exp_buff_agent))
-    r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", ddpg_act_agent.model.params, ddpg_train_agent.target_model.params, c.target_network_update_every, c.target_network_update_tau))
+    sac_train_agent = r.register_agent(SACTrainAgent(c, "SACTrainAgent", sac_act_agent, exp_buff_agent))
+    r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", sac_act_agent.model.params, sac_train_agent.target_model.params, c.target_network_update_every, c.target_network_update_tau))
 
 # rendering and visualizations:
 if c.render:
@@ -54,7 +53,7 @@ for env_id_no in range(c.num_envs):
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
 # algo specific stats and graphs:
-misc_keys = ['Critic Loss', 'Actor Loss', 'Total Updates', "Average Actor Critic Q", 'Exploration Divergence', 'Exploration Sigma']
+misc_keys = ['Critic Loss', 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Action LogStd", "Average Action LogPi"]
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
 

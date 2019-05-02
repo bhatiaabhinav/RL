@@ -19,7 +19,8 @@ class DQNTrainAgent(RL.Agent):
         self.target_model = Brain(self.context, '{0}/target_brain'.format(self.name), True, head_names=self.dqn_act_agent.head_names)
 
     def pre_act(self):
-        self.dqn_act_agent.model.update_running_stats(self.runner.obss)
+        if self.context.normalize_observations:
+            self.dqn_act_agent.model.update_running_stats(self.runner.obss)
 
     def optimize(self, states, actions, *desired_Q_values_per_head):
         all_rows = np.arange(len(states))

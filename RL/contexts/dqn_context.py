@@ -27,6 +27,8 @@ class DQNContext(RL.Context):
     atari_noop_max = 30
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     hidden_layers = [512]
+    init_scale = 1
+    normalize_observations = True
     num_steps_to_run = int(5e7)  # 50M Steps. i.e. 200M Frames
     num_episodes_to_run = int(5e7)
     num_envs_to_make = 1

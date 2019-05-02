@@ -21,6 +21,8 @@ class Context:
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
     init_scale = 1
+    normalize_observations = True
+    normalize_actions = False
     hidden_layers = [512]  # hidden layers
     num_episodes_to_run = int(5e7)
     num_steps_to_run = int(5e7)
@@ -47,6 +49,7 @@ class Context:
     actor_learning_rate = 1e-4
     double_dqn = False
     dueling_dqn = False
+    num_critics = 1
     l2_reg = 0
     actor_l2_reg = 0
     clip_gradients = False
@@ -79,6 +82,8 @@ class Context:
     lunar_no_crash_penalty_main_stream = False
     alpha = 0.1
     beta = 0.1
+    logstd_max = 2
+    logstd_min = -20
 
     def activation_fn(self, x):
         return tf.nn.relu(x)

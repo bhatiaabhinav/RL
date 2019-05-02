@@ -409,6 +409,11 @@ def tf_scale(a, low, high, target_low, target_high, scope):
         return scale(a, low, high, target_low, target_high)
 
 
+def tf_clip(x, low=-1, high=1, name='clip'):
+    with tf.variable_scope(name):
+        return tf.minimum(tf.maximum(x, low), high)
+
+
 def tf_safe_softmax(inputs, scope):
     with tf.variable_scope(scope):
         x = inputs - tf.reduce_max(inputs, axis=1, keepdims=True)

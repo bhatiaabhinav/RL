@@ -57,7 +57,7 @@ class Brain:
             self._states_rms = TfRunningStats(
                 list(self.context.env.observation_space.shape), Brain.Scopes.states_rms.value)
             self._states_normalized = self._states_rms.normalize(
-                self._states_placeholder)
+                self._states_placeholder) if self.context.normalize_observations else self._states_placeholder
             self._states_embeddings = self._tf_states_embeddings(
                 self._states_normalized)
             self._Qs, self._Vs = [], []
