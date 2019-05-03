@@ -3,7 +3,7 @@ import RL
 
 class SACContext(RL.Context):
     num_critics = 2
-    minibatch_size = 64
+    minibatch_size = 256
     experience_buffer_length = int(1e6)
     target_network_update_every = 1  # 8K Steps i.e 32K Frames
     target_network_update_tau = 0.005

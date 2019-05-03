@@ -20,7 +20,7 @@ class SACTrainAgent(RL.Agent):
 
     def get_target_network_V(self, states):
         target_actions, _, _, target_logpis = self.target_model.actions_means_logstds_logpis(states, noise=self.target_model.sample_actions_noise(len(states)))
-        Q = np.min(np.array([self.target_model.Q(i, states, target_actions) for i in range(self.context.num_critics)]), axis=0)
+        Q = np.min(np.asarray(self.target_model.Q(list(range(self.context.num_critics)), states, target_actions)), axis=0)
         assert len(Q) == len(states)
         assert len(target_logpis) == len(states)
         V = Q - self.context.alpha * target_logpis
@@ -31,14 +31,12 @@ class SACTrainAgent(RL.Agent):
         states, actions, rewards, dones, infos, next_states = self.experience_buffer_agent.experience_buffer.random_experiences_unzipped(c.minibatch_size)
         next_states_V = self.get_target_network_V(next_states)
         desired_Q_values = rewards + (1 - dones.astype(np.int)) * (c.gamma ** c.nsteps) * next_states_V
-        if c.clip_td_error:
-            Q = self.sac_act_agent.model.Q(states, actions)
-            td_errors = desired_Q_values - Q
-            td_errors = np.clip(-1, 1)
-            desired_Q_values = Q + td_errors
-        critic_loss = np.mean([self.sac_act_agent.model.train_critic(i, states, actions, desired_Q_values) for i in range(self.context.num_critics)])
-        actor_loss, actor_critic_Q, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, self.sac_act_agent.model.sample_actions_noise(len(states)), self.context.alpha)
-        return critic_loss, actor_loss, np.mean(actor_critic_Q), np.mean(actor_logstds), np.mean(actor_logpis)
+        desired_Q_values_per_critic = [desired_Q_values] * c.num_critics
+        # TODO: implement TD error clipping
+        critic_loss = self.sac_act_agent.model.train_critics(states, actions, list(range(c.num_critics)), desired_Q_values_per_critic, [1 / c.num_critics] * c.num_critics)
+        noise = self.sac_act_agent.model.sample_actions_noise(len(states))
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0], [1], c.alpha)
+        return critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_logstds), np.mean(actor_logpis)
 
     def post_act(self):
         c = self.context

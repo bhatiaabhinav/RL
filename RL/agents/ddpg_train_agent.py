@@ -29,11 +29,12 @@ class DDPGTrainAgent(RL.Agent):
         states, actions, rewards, dones, infos, next_states = self.experience_buffer_agent.experience_buffer.random_experiences_unzipped(c.minibatch_size)
         next_states_V = self.get_target_network_V(next_states)
         desired_Q_values = rewards + (1 - dones.astype(np.int)) * (c.gamma ** c.nsteps) * next_states_V
-        if c.clip_td_error:
-            Q = self.ddpg_act_agent.model.Q(states, actions)
-            td_errors = desired_Q_values - Q
-            td_errors = np.clip(-1, 1)
-            desired_Q_values = Q + td_errors
+        # if c.clip_td_error:
+        #     Q = self.ddpg_act_agent.model.Q(states, actions)
+        #     td_errors = desired_Q_values - Q
+        #     td_errors = np.clip(-1, 1)
+        #     desired_Q_values = Q + td_errors
+        # TODO: Implement TD Error clipping
         critic_loss = np.mean([self.ddpg_act_agent.model.train_critic(i, states, actions, desired_Q_values) for i in range(self.context.num_critics)])
         actor_loss, actor_critic_Q = self.ddpg_act_agent.model.train_actor(states)
         return critic_loss, actor_loss, np.mean(actor_critic_Q)
