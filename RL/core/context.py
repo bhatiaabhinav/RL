@@ -83,6 +83,8 @@ class Context:
     lunar_no_crash_penalty_main_stream = False
     alpha = 0.1
     beta = 0.1
+    safety_coeffs = [0.1]
+
     logstd_max = 2
     logstd_min = -20
 
