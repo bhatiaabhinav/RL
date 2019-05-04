@@ -17,6 +17,7 @@ class ModelLoaderSaverAgent(RL.Agent):
         if self.load_dir is not None:
             load_path = os.path.join(self.load_dir, self.filename)
             self.loader_saver.load(load_path)
+            RL.logger.debug(self.filename, " loaded")
 
     def save_model(self):
         if self.save_dir is not None:
@@ -24,7 +25,7 @@ class ModelLoaderSaverAgent(RL.Agent):
             save_path_for_episode = os.path.join(self.save_dir, self.filename + str(self.runner.episode_id))
             self.loader_saver.save(save_path)
             self.loader_saver.save(save_path_for_episode)
-            RL.logger.log(self.filename, "saved", level=RL.logger.DEBUG)
+            RL.logger.debug(self.filename, " saved")
 
     def start(self):
         super().start()

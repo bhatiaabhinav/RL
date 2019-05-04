@@ -6,7 +6,7 @@ import numpy as np
 class SACActAgent(RL.Agent):
     def __init__(self, context: RL.Context, name):
         super().__init__(context, name)
-        self.model = SACModel(context, "{0}/model".format(name), num_critics=self.context.num_critics)
+        self.model = SACModel(context, "{0}/model".format(name), num_actors=1, num_critics=self.context.num_critics, num_valuefns=1)
 
     def policy(self, model: SACModel, states, exploit_modes):
         assert len(exploit_modes) == len(states)

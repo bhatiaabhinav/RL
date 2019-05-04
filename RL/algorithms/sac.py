@@ -35,11 +35,11 @@ r.register_agent(SeedingAgent(c, "SeedingAgent"))
 
 # core algo
 sac_act_agent = r.register_agent(SACActAgent(c, "SACActAgent"))
-r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", sac_act_agent.model.params))
+r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", sac_act_agent.model.get_vars()))
 if not c.eval_mode:
     exp_buff_agent = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent"))
     sac_train_agent = r.register_agent(SACTrainAgent(c, "SACTrainAgent", sac_act_agent, exp_buff_agent))
-    r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", sac_act_agent.model.params, sac_train_agent.target_model.params, c.target_network_update_every, c.target_network_update_tau))
+    r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", sac_act_agent.model.get_vars('valuefn0', 'running_stats'), sac_train_agent.target_model.get_vars('valuefn0', 'running_stats'), c.target_network_update_every, c.target_network_update_tau))
 
 # rendering and visualizations:
 if c.render:
@@ -53,7 +53,7 @@ for env_id_no in range(c.num_envs):
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
 # algo specific stats and graphs:
-misc_keys = ['Critic Loss', 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Action LogStd", "Average Action LogPi"]
+misc_keys = ['ValueFn Loss', 'Critic Loss', 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Action LogStd", "Average Action LogPi"]
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
 

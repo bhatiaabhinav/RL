@@ -15,6 +15,7 @@ class Context:
     default_env_id = 'CartPole-v0'
     default_experiment_name = 'untitled'
     default_logdir = os.getenv('OPENAI_LOGDIR')
+    logger_level = 'DEBUG'
     seed = 0
     gamma = 0.99
     eval_mode = False
@@ -104,6 +105,7 @@ class Context:
         os.putenv('OPENAI_LOGDIR', self.logdir)
         RL.logger.reset()
         RL.logger.configure(self.logdir)
+        RL.logger.set_level(getattr(RL.logger, self.logger_level))
         # save
         self._save()
         # misc

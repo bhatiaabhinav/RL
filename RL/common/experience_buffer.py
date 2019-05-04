@@ -45,7 +45,7 @@ class ExperienceBuffer:
             if self.size_in_bytes is not None:
                 self.buffer_length = self.size_in_bytes / sys.getsizeof(exp)
             self.buffer_length = int(self.buffer_length)
-            RL.logger.log('Initializing experience buffer of length {0}. Est. memory: {1} MB'.format(
+            RL.logger.debug('Initializing experience buffer of length {0}. Est. memory: {1} MB'.format(
                 self.buffer_length, self.buffer_length * sys.getsizeof(exp) // (1024 * 1024)))
             self.buffer = [None] * self.buffer_length
         self.buffer[self.next_index] = exp

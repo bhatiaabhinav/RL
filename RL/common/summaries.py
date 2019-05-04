@@ -4,7 +4,7 @@ import tensorflow as tf
 
 class Summaries:
     def __init__(self, session: tf.Session):
-        RL.logger.log("Setting up summaries")
+        RL.logger.debug("Setting up summaries")
         self.session = session
         self.writer = tf.summary.FileWriter(
             RL.logger.get_dir(), self.session.graph)
