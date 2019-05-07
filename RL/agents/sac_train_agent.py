@@ -10,7 +10,7 @@ class SACTrainAgent(RL.Agent):
         super().__init__(context, name)
         self.sac_act_agent = sac_act_agent
         self.experience_buffer_agent = exp_buffer_agent
-        self.target_model = SACModel(context, "{0}/target_model".format(name), num_actors=1, num_critics=self.context.num_critics, num_valuefns=1)
+        self.target_model = SACModel(context, "{0}/target_model".format(name), num_actors=0, num_critics=0, num_valuefns=1)
         self.sac_act_agent.model.setup_training("{0}/training_ops".format(name))
         self.total_updates = 0
         self.critic_ids = list(range(self.context.num_critics))
