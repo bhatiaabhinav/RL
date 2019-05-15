@@ -1,7 +1,6 @@
 import RL
 from RL.agents.sac_act_agent import SACActAgent
 from RL.agents.experience_buffer_agent import ExperienceBufferAgent
-from RL.common.experience_buffer import MultiRewardStreamExperience
 from RL.models.safe_sac_model import SafeSACModel
 import numpy as np
 
