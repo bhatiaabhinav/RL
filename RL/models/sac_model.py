@@ -88,7 +88,7 @@ class SACModel:
 
     def tf_actor(self, states, actions_noise, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
-            outp = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 2 * self.action_space.shape[0], lambda x: x, "conv_dense", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
+            outp = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 2 * self.action_space.shape[0], lambda x: x, "conv_dense", layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
             means = outp[:, 0:self.action_space.shape[0]]
             # logstds = tf.tanh(outp[:, self.action_space.shape[0]:])
             # logstds = tf_scale(logstds, -1, 1, self.context.logstd_min, self.context.logstd_max, 'scale_logstd')
@@ -102,11 +102,11 @@ class SACModel:
             if need_conv_net(self.context.env.observation_space):
                 states = conv_net(states, self.context.convs, self.context.activation_fn, 'conv', reuse=reuse)
             states_actions = tf.concat(values=[states, actions], axis=-1)
-            return dense_net(states_actions, self.context.hidden_layers, self.context.activation_fn, 1, lambda x: x, "dense", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)[:, 0]
+            return dense_net(states_actions, self.context.hidden_layers, self.context.activation_fn, 1, lambda x: x, "dense", layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)[:, 0]
 
     def tf_value_fn(self, states, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
-            return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 1, lambda x: x, "conv_dense", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)[:, 0]
+            return auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 1, lambda x: x, "conv_dense", layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)[:, 0]
 
     def tf_actor_loss(self, actor_loss_coeffs, actor_loss_alpha, actor_critics, actor_logpis, name):
         with tf.variable_scope(name):
@@ -184,19 +184,19 @@ class SACModel:
             # actor training
             if self.num_actors:
                 actor_trainable_vars = self.get_trainable_vars('actor')
-                actor_optimizer = tf.train.AdamOptimizer(self.context.actor_learning_rate)
+                actor_optimizer = tf.train.AdamOptimizer(self.context.actor_learning_rate, epsilon=self.context.adam_epsilon)
                 assert len(actor_trainable_vars) > 0, "No vars to train in actor"
                 self._actor_train_step = tf_training_step(self._actor_loss, actor_trainable_vars, actor_optimizer, self.context.actor_l2_reg, self.context.clip_gradients, "actor_train_step")
             # critics training
             if self.num_critics:
                 critics_trainable_vars = self.get_trainable_vars(*('critic{0}'.format(i) for i in range(self.num_critics)))
-                critics_optimizer = tf.train.AdamOptimizer(self.context.learning_rate)
+                critics_optimizer = tf.train.AdamOptimizer(self.context.learning_rate, epsilon=self.context.adam_epsilon)
                 assert len(critics_trainable_vars) > 0, "No vars to train in critics"
                 self._critics_train_step = tf_training_step(self._critics_loss, critics_trainable_vars, critics_optimizer, self.context.l2_reg, self.context.clip_gradients, "critics_train_step")
             # valuefns training
             if self.num_valuefns:
                 valuefns_trainable_vars = self.get_trainable_vars(*('valuefn{0}'.format(i) for i in range(self.num_valuefns)))
-                valuefns_optimizer = tf.train.AdamOptimizer(self.context.learning_rate)
+                valuefns_optimizer = tf.train.AdamOptimizer(self.context.learning_rate, epsilon=self.context.adam_epsilon)
                 assert len(valuefns_trainable_vars) > 0, "No vars to train in valuefns"
                 self._valuefns_train_step = tf_training_step(self._valuefns_loss, valuefns_trainable_vars, valuefns_optimizer, self.context.l2_reg, self.context.clip_gradients, "valuefns_train_step")
 

@@ -19,9 +19,10 @@ class SACContext(RL.Context):
     minimum_experience = 10000  # or 20K Frames. If using prioritized replay, use 2/5th number of steps.
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     hidden_layers = [256, 256]
-    normalize_observations = True
+    layer_norm = False
+    normalize_observations = None
     normalize_actions = False
-    init_scale = 3e-3
+    init_scale = None
     num_steps_to_run = int(1e7)  # 10M Steps
     num_episodes_to_run = int(1e7)
     num_envs_to_make = 1

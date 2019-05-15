@@ -21,10 +21,11 @@ class Context:
     eval_mode = False
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
-    init_scale = 1
+    init_scale = None
     normalize_observations = True
     normalize_actions = False
     hidden_layers = [512]  # hidden layers
+    layer_norm = False
     num_episodes_to_run = int(5e7)
     num_steps_to_run = int(5e7)
     num_envs_to_make = 1
@@ -90,6 +91,13 @@ class Context:
 
     def activation_fn(self, x):
         return tf.nn.relu(x)
+
+    @property
+    def output_kernel_initializer(self):
+        if self.init_scale is None:
+            return None
+        else:
+            return tf.random_uniform_initializer(minval=-self.init_scale, maxval=self.init_scale)
 
     def __init__(self):
         self.env_id = self.default_env_id

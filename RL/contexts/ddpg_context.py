@@ -18,6 +18,7 @@ class DDPGContext(RL.Context):
     minimum_experience = 10000  # or 20K Frames. If using prioritized replay, use 2/5th number of steps.
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     hidden_layers = [400, 300]
+    layer_norm = False
     normalize_observations = True
     normalize_actions = False
     init_scale = 3e-3

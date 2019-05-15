@@ -599,13 +599,14 @@ def conv_net(inputs, convs, activation_fn, name, reuse=False):
     return prev_layer
 
 
-def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activation, name, layer_norm=False, output_kernel_initializer=None, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         prev_layer = inputs
         for layer_id, layer in enumerate(hidden_layers):
             h = tf.layers.dense(prev_layer, layer,
                                 activation=None, name='h{0}'.format(layer_id))
-            h = tc.layers.layer_norm(h, scale=True, center=True)
+            if layer_norm:
+                h = tc.layers.layer_norm(h, scale=True, center=True)
             h = activation_fn(h)
             prev_layer = h
         if output_size is not None:
@@ -617,22 +618,22 @@ def dense_net(inputs, hidden_layers, activation_fn, output_size, output_activati
     return output_layer
 
 
-def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+def conv_dense_net(inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, layer_norm=False, output_kernel_initializer=None, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
-                            output_size, output_activation, "dense_net", output_kernel_initializer=output_kernel_initializer)
+                            output_size, output_activation, "dense_net", layer_norm=layer_norm, output_kernel_initializer=output_kernel_initializer)
         return mlp_out
 
 
-def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, output_kernel_initializer=None, reuse=False):
+def auto_conv_dense_net(need_conv_net, inputs, convs, hidden_layers, activation_fn, output_size, output_activation, name, layer_norm=False, output_kernel_initializer=None, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         if need_conv_net:
             conv_out = conv_net(inputs, convs, activation_fn, "conv_net")
         else:
             conv_out = inputs
         mlp_out = dense_net(conv_out, hidden_layers, activation_fn,
-                            output_size, output_activation, "dense_net", output_kernel_initializer=output_kernel_initializer)
+                            output_size, output_activation, "dense_net", layer_norm=layer_norm, output_kernel_initializer=output_kernel_initializer)
         return mlp_out
 
 

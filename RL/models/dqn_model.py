@@ -146,12 +146,12 @@ class Brain:
         with tf.variable_scope(Brain.Scopes.Q_network.value, reuse=reuse):
             if not self.context.dueling_dqn:
                 Q = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                              self.context.env.action_space.n, lambda x: x, 'dense_net', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
+                              self.context.env.action_space.n, lambda x: x, 'dense_net', layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
             else:
                 A_dueling = dense_net(inputs, self.context.hidden_layers, self.context.activation_fn,
-                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
+                                      self.context.env.action_space.n, lambda x: x, 'A_dueling', layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
                 V_dueling = dense_net(inputs, self.context.hidden_layers,
-                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)
+                                      self.context.activation_fn, 1, lambda x: x, 'V_dueling', layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
                 Q = V_dueling + A_dueling - \
                     tf.reduce_mean(A_dueling, axis=1, keepdims=True)
             return Q
