@@ -1,8 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import RL
-from RL.common.utils import tf_inputs, TfRunningStats, auto_conv_dense_net, dense_net, tf_training_step, tf_scale, tf_clip, need_conv_net
-import gym
+from RL.common.utils import tf_inputs, TfRunningStats, conv_net, auto_conv_dense_net, dense_net, tf_training_step, tf_scale, tf_clip, need_conv_net
 
 
 class SACModel:
@@ -42,7 +41,7 @@ class SACModel:
             self._valuefns_loss = self.tf_valuefns_loss(valuefns_loss_coeffs_input, self._valuefns, valuefns_targets_input, "valuefns_loss")
             if self.num_actors:
                 # actor
-                self._actor_actions, self._actor_means, self._actor_logstds, self._actor_logpis = self.tf_actor(states_input_normalized, actions_noise_input, 'actor')
+                self._actor_means, self._actor_logstds, self._actor_actions, self._actor_logpis = self.tf_actor(states_input_normalized, actions_noise_input, 'actor')
                 # actor normalized
                 actor_actions_normalized = self._actions_running_stats.normalize(self._actor_actions, "actor_actions_normalize") if self.context.normalize_actions else self._actor_actions
                 # actor-critics
@@ -55,8 +54,8 @@ class SACModel:
             self.state_space.dtype = np.float32
         if not hasattr(self.action_space, 'dtype'):
             self.action_space.dtype = np.float32
-        assert isinstance(self.state_space, gym.spaces.Box)
-        assert isinstance(self.action_space, gym.spaces.Box)
+        assert hasattr(self.state_space, 'shape')
+        assert hasattr(self.action_space, 'shape') and hasattr(self.action_space, 'low') and hasattr(self.action_space, 'high')
         assert len(self.action_space.shape) == 1
         assert self.num_actors <= 1, "There can be atmost 1 actor"
 
@@ -68,18 +67,24 @@ class SACModel:
             logpi_per_dimension = -tf.square((x - means) / (stds + 1e-8)) - logstds - np.log(np.sqrt(2 * np.pi))  # log of gaussian per dimension
             logpi = tf.reduce_sum(logpi_per_dimension, axis=-1)  # overall pi is product of pi per dimension, so overall log_pi is sum of log_pi per dimension
             # tanh
+            means = tf.nn.tanh(means)
             y = tf.nn.tanh(x)
             dy_dx = tf_clip(1 - tf.square(y), 0, 1)
             log_dy_dx = tf.log(dy_dx + 1e-6)
-            # scale
-            z = tf_scale(y, -1, 1, self.action_space.low, self.action_space.high, "scale")
-            dz_dy = (self.action_space.high - self.action_space.low) / 2
-            log_dz_dy = tf.log(dz_dy)
+            logpi = logpi - tf.reduce_sum(log_dy_dx, axis=-1)  # by change of variables: overall log probability after activations = logpi - component wise sum of log derivatives of the activation
+            return means, y, logpi
+
+    def tf_actions_scale(self, means, actions, name):
+        '''Does not change logpi'''
+        with tf.variable_scope(name):
+            actions = tf_scale(actions, -1, 1, self.action_space.low, self.action_space.high, "scale_actions")
+            means = tf_scale(means, -1, 1, self.action_space.low, self.action_space.high, "scale_mean")
+            # dy_dx = ((self.action_space.high - self.action_space.low) / 2).astype(np.float32)
+            # log_dy_dx = tf.log(dy_dx)
             # overall log derivative:
-            log_dz_dx = log_dz_dy + log_dy_dx  # by chain rule. it is a sum due to log operator
             # by change of variables: overall log probability after activations = logpi - component wise sum of log derivatives of the activation
-            logpi = logpi - tf.reduce_sum(log_dz_dx, axis=-1)
-            return z, logpi
+            # logpi = logpi - tf.reduce_sum(log_dy_dx, axis=-1)
+            return means, actions
 
     def tf_actor(self, states, actions_noise, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
@@ -88,14 +93,16 @@ class SACModel:
             # logstds = tf.tanh(outp[:, self.action_space.shape[0]:])
             # logstds = tf_scale(logstds, -1, 1, self.context.logstd_min, self.context.logstd_max, 'scale_logstd')
             logstds = tf_clip(outp[:, self.action_space.shape[0]:], self.context.logstd_min, self.context.logstd_max)
-            actions, logpi = self.tf_actor_activation_fn(means, logstds, actions_noise, 'gaussian_tanh_scaled')
-            return actions, means, logstds, logpi
+            means, actions, logpi = self.tf_actor_activation_fn(means, logstds, actions_noise, 'gaussian_tanh')
+            means, actions = self.tf_actions_scale(means, actions, "scale")
+            return means, logstds, actions, logpi
 
     def tf_critic(self, states, actions, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
-            states_to_one_hidden = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers[:1], self.context.activation_fn, None, None, "conv_dense", reuse=reuse)
-            one_hidden_plus_actions = tf.concat(values=[states_to_one_hidden, actions], axis=1, name="concat")
-            return dense_net(one_hidden_plus_actions, self.context.hidden_layers[1:], self.context.activation_fn, 1, lambda x: x, "dense", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)[:, 0]
+            if need_conv_net(self.context.env.observation_space):
+                states = conv_net(states, self.context.convs, self.context.activation_fn, 'conv', reuse=reuse)
+            states_actions = tf.concat(values=[states, actions], axis=-1)
+            return dense_net(states_actions, self.context.hidden_layers, self.context.activation_fn, 1, lambda x: x, "dense", output_kernel_initializer=tf.random_uniform_initializer(minval=-self.context.init_scale, maxval=self.context.init_scale), reuse=reuse)[:, 0]
 
     def tf_value_fn(self, states, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
