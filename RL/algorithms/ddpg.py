@@ -9,7 +9,6 @@ from RL.agents import (BasicStatsRecordingAgent, DDPGActAgent,  # noqa: F401
                        TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
-from RL.common.wrappers import MaxEpisodeStepsWrapper
 from RL.contexts import DDPGContext
 from RL.models.ddpg_model import DDPGModel
 
@@ -20,8 +19,6 @@ def make(id):
     env = gym.make(id)  # type: gym.Env
     if need_conv_net(env.observation_space):
         env = wrap_atari(env, episode_life=c.atari_episode_life, clip_rewards=c.atari_clip_rewards, framestack_k=c.atari_framestack_k, frameskip_k=c.atari_frameskip_k, noop_max=c.atari_noop_max)
-    if 'Lunar' in id:
-        env = MaxEpisodeStepsWrapper(env, 600)
     return env
 
 

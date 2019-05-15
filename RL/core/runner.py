@@ -19,6 +19,7 @@ class Runner:
         if self.num_episodes_to_run is None:
             self.num_episodes_to_run = self.context.num_episodes_to_run
         self.num_stepss = np.array([0] * self.num_envs)
+        self.num_episode_stepss = np.array([0] * self.num_envs)
         self.num_episodess = np.array([0] * self.num_envs)
         self.prev_obss = [None] * self.num_envs
         self.obss = [None] * self.num_envs
@@ -41,6 +42,10 @@ class Runner:
         return self.num_stepss[0]
 
     @property
+    def num_episode_steps(self):
+        return self.num_episode_stepss[0]
+
+    @property
     def num_episodes(self):
         return self.num_episodess[0]
 
@@ -49,12 +54,20 @@ class Runner:
         return self.num_stepss
 
     @property
+    def episode_step_ids(self):
+        return self.num_episode_stepss
+
+    @property
     def episode_ids(self):
         return self.num_episodess
 
     @property
     def step_id(self):
         return self.step_ids[0]
+
+    @property
+    def episode_step_id(self):
+        return self.episode_step_ids[0]
 
     @property
     def episode_id(self):
@@ -107,6 +120,7 @@ class Runner:
                 self.rewards[env_id_no] = 0
                 self.dones[env_id_no] = False
                 self.infos[env_id_no] = {}
+                self.num_episode_stepss[env_id_no] = 0
                 self.exploit_modes[env_id_no] = self.context.eval_mode or self.episode_ids[env_id_no] % self.context.exploit_every == 0
             # pre episode for envs which just got resetted
             if len(need_reset_env_id_nos) > 0:
@@ -135,6 +149,7 @@ class Runner:
             if len(need_reset_env_id_nos) > 0:
                 [agent.post_episode(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]
             # increment steps and episodes
+            self.num_episode_stepss = self.num_episode_stepss + 1
             self.num_stepss = self.num_stepss + 1
             if len(need_reset_env_id_nos) > 0:
                 self.num_episodess[need_reset_env_id_nos] = self.num_episodess[need_reset_env_id_nos] + 1

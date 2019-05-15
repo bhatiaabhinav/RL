@@ -1,5 +1,5 @@
 import RL
-from RL.common.experience_buffer import ExperienceBuffer, Experience
+from RL.common.experience_buffer import ExperienceBuffer, Experience, MultiRewardStreamExperience
 from typing import List
 import numpy as np
 
@@ -38,6 +38,44 @@ class ExperienceBufferAgent(RL.Agent):
             self.experience_buffer.add(nstep_buffer.pop(0))
             assert len(nstep_buffer) == self.context.nsteps - 1
 
+    def get_state(self, env_id_no):
+        return self.runner.prev_obss[env_id_no]
+
+    def get_action(self, env_id_no):
+        return self.runner.actions[env_id_no]
+
+    def get_reward(self, env_id_no):
+        return self.runner.rewards[env_id_no]
+
+    def get_done(self, env_id_no):
+        done = self.runner.dones[env_id_no]
+        if done:
+            info = self.get_info(env_id_no)
+            # print(info)
+            if 'TimeLimit.truncated' in info:
+                done = not info.get('TimeLimit.truncated')
+                # if not done:
+                #     print('TimeLimit.truncated signal says not a real done')
+                # else:
+                #     print('TimeLimit.truncated signal says it is a real done')
+            elif hasattr(self.context.envs[env_id_no].spec, 'max_episode_steps'):
+                if self.runner.episode_step_ids[env_id_no] + 1 == self.context.envs[env_id_no].spec.max_episode_steps:
+                    done = False
+                    # print('Comparision with env.spec.max_episode_steps says Not a real done', self.runner.episode_step_ids[env_id_no] + 1)
+                else:
+                    # print('Comparision with env.spec.max_episode_steps says Real done', self.runner.episode_step_ids[env_id_no] + 1)
+                    pass
+            else:
+                pass
+                # print("No timelimit info to check against. Asssuming real done")
+        return done
+
+    def get_info(self, env_id_no):
+        return self.runner.infos[env_id_no]
+
+    def get_next_state(self, env_id_no):
+        return self.runner.obss[env_id_no]
+
     def create_experiences(self):
         exps = []
         for i in range(self.context.num_envs):
@@ -46,6 +84,10 @@ class ExperienceBufferAgent(RL.Agent):
 
     def post_act(self):
         super().post_act()
-        exps = self.create_experiences()
-        for env_id_no, exp in enumerate(exps):
+        for env_id_no in range(self.context.num_envs):
+            s, a, r, d, i, ns = self.get_state(env_id_no), self.get_action(env_id_no), self.get_reward(env_id_no), self.get_done(env_id_no), self.get_info(env_id_no), self.get_next_state(env_id_no)
+            if hasattr(r, '__len__'):
+                exp = MultiRewardStreamExperience(s, a, r, d, i, ns)
+            else:
+                exp = Experience(s, a, r, d, i, ns)
             self.add_to_experience_buffer(exp, env_id_no)

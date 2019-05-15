@@ -18,12 +18,8 @@ class SafeSACTrainAgent(RL.Agent):
         self.total_updates = 0
         self.critic_ids = list(range(self.context.num_critics + 1))
 
-    def create_experiences(self):
-        exps = []
-        for i in range(self.context.num_envs):
-            rewards = [self.runner.rewards[i]] + [self.runner.infos[i][stream_name + '_reward'] for stream_name in self.context.safety_stream_names]
-            exps.append(MultiRewardStreamExperience(self.runner.prev_obss[i], self.runner.actions[i], rewards, self.runner.dones[i], self.runner.infos[i], self.runner.obss[i]))
-        return exps
+    def get_reward(self, env_id_no):
+        return [self.runner.rewards[env_id_no]] + [self.runner.infos[env_id_no][stream_name + '_reward'] for stream_name in self.context.safety_stream_names]
 
     def pre_act(self):
         if self.context.normalize_observations:

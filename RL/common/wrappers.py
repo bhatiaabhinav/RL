@@ -2,6 +2,7 @@ from collections import deque
 
 import gym
 import numpy as np
+from gym.wrappers import TimeLimit
 
 import RL
 from RL.common.utils import ImagePygletWingow
@@ -123,22 +124,7 @@ class DiscreteToContinousWrapper(gym.Wrapper):
         return super().step(a)
 
 
-class MaxEpisodeStepsWrapper(gym.Wrapper):
-    def __init__(self, env, max_steps=1000):
-        super().__init__(env)
-        self.max_steps = max_steps
-        self._current_ep_steps = 0
-
-    def reset(self):
-        self._current_ep_steps = 0
-        return self.env.reset()
-
-    def step(self, action):
-        obs, r, d, info = self.env.step(action)
-        self._current_ep_steps += 1
-        if self._current_ep_steps >= self.max_steps:
-            d = True
-        return obs, r, d, info
+MaxEpisodeStepsWrapper = TimeLimit
 
 
 class RenderWrapper(gym.Wrapper):

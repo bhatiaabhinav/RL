@@ -1,6 +1,5 @@
 import RL
 from RL.common.atari_wrappers import wrap_atari
-from RL.common.wrappers import MaxEpisodeStepsWrapper
 from RL.contexts import DQNContext
 from RL.agents import SeedingAgent, TensorFlowAgent, DQNActAgent, LinearAnnealingAgent, ExperienceBufferAgent, DQNTrainAgent, ParamsCopyAgent, ModelLoaderSaverAgent, EnvRenderingAgent, DQNSensitivityVisualizerAgent, PygletLoopAgent, BasicStatsRecordingAgent, StatsLoggingAgent, TensorboardAgent  # noqa: F401
 import gym
@@ -14,8 +13,6 @@ def make(id):
     env = gym.make(id)  # type: gym.Env
     if need_conv_net(env.observation_space):
         env = wrap_atari(env, episode_life=c.atari_episode_life, clip_rewards=c.atari_clip_rewards, framestack_k=c.atari_framestack_k, frameskip_k=c.atari_frameskip_k, noop_max=c.atari_noop_max)
-    if 'Lunar' in id:
-        env = MaxEpisodeStepsWrapper(env, 600)
     return env
 
 

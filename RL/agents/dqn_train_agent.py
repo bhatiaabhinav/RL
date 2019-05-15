@@ -1,7 +1,6 @@
 import RL
 from RL.agents.dqn_act_agent import DQNActAgent
 from RL.agents.experience_buffer_agent import ExperienceBufferAgent
-from RL.common.experience_buffer import MultiRewardStreamExperience
 from RL.models.dqn_model import Brain
 import numpy as np
 
@@ -11,7 +10,7 @@ class DQNTrainAgent(RL.Agent):
         super().__init__(context, name)
         self.dqn_act_agent = dqn_act_agent
         self.experience_buffer_agent = exp_buffer_agent
-        self.experience_buffer_agent.create_experiences = self.create_experiences
+        self.experience_buffer_agent.get_reward = self.get_reward
         self.loss_coeffs = loss_coeffs_per_head
         assert len(self.loss_coeffs) == len(self.dqn_act_agent.head_names)
         if not hasattr(self.context.gamma, "__len__") and len(self.dqn_act_agent.head_names) > 1:
@@ -54,13 +53,8 @@ class DQNTrainAgent(RL.Agent):
             desired_Q_values_per_head.append(desired_Q_values)
         combined_loss, Q_losses, Q_mpes = self.optimize(states, actions, *desired_Q_values_per_head)
 
-    def create_experiences(self):
-        r = self.runner
-        exps = []
-        for i in range(self.context.num_envs):
-            reward = [r.rewards[i]]
-            exps.append(MultiRewardStreamExperience(r.prev_obss[i], r.actions[i], reward, r.dones[i], r.infos[i], r.obss[i]))
-        return exps
+    def get_reward(self, env_id_no):
+        return [self.runner.rewards[env_id_no]]
 
     def post_act(self):
         r = self.runner
