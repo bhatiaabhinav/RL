@@ -18,7 +18,7 @@ class PointEnv(MujocoEnv, Serializable, gym.Env):
 
     def __init__(self, 
             size=40, 
-            align_mode=True,
+            align_mode=False,
             reward_dir=[0.,0.], 
             target_dist=15.,
             *args, **kwargs):
@@ -28,6 +28,9 @@ class PointEnv(MujocoEnv, Serializable, gym.Env):
         self.target_dist = target_dist
         super(PointEnv, self).__init__(*args, **kwargs)
         Serializable.quick_init(self, locals())
+
+    def render(self, mode='human'):
+        super().render()
 
     def get_current_obs(self):
         return np.concatenate([

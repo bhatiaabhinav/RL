@@ -145,12 +145,13 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
 
         if self._circle_mode:
             pos = self.wrapped_env.get_body_com("torso")
-            vel = self.wrapped_env.get_body_comvel("torso")
-            dt = self.wrapped_env.model.opt.timestep
+            # vel = self.wrapped_env.get_body_comvel("torso")
+            # dt = self.wrapped_env.model.opt.timestep
             x, y = pos[0], pos[1]
-            dx, dy = vel[0], vel[1]
-            reward = -y * dx + x * dy
-            reward /= (1 + np.abs(np.sqrt(x **2 + y **2) - self._target_dist))
+            # dx, dy = vel[0], vel[1]
+            # reward = -y * dx + x * dy
+            # reward /= (1 + np.abs(np.sqrt(x **2 + y **2) - self._target_dist))
+            # let reward come from point env.
             if self._abs_lim:
                 safety_reward = -float(np.abs(x) >= self._xlim)
             else:
