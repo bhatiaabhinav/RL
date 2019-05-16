@@ -10,7 +10,7 @@ class SafeSACTrainAgent(RL.Agent):
         super().__init__(context, name)
         self.sac_act_agent = sac_act_agent
         self.experience_buffer_agent = exp_buffer_agent
-        self.experience_buffer_agent.create_experiences = self.create_experiences
+        self.experience_buffer_agent.get_reward = self.get_reward
         assert len(self.context.safety_stream_names) == 1, "Right now exactly one safety stream is supported"
         self.target_model = SafeSACModel(context, "{0}/target_model".format(name), num_actors=0, num_critics=0, num_valuefns=2)
         self.sac_act_agent.model.setup_training("{0}/training_ops".format(name))
@@ -56,7 +56,7 @@ class SafeSACTrainAgent(RL.Agent):
         safety_valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [1], [safety_V_targets], [1])
         critic_loss = self.sac_act_agent.model.train_critics(states, actions, self.critic_ids[:c.num_critics], Q_targets_per_critic, [1 / c.num_critics] * c.num_critics)
         safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [safety_Q_targets], [1])
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, 2], [1, c.safety_coeffs[0]], c.alpha)
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], c.alpha)
         return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis)
 
     def post_act(self):
