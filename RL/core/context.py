@@ -8,6 +8,7 @@ import tensorflow as tf
 import RL
 from RL.common.summaries import Summaries
 import gym
+import roboschool  # noqa: F401
 
 
 class Context:
