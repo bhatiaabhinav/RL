@@ -681,6 +681,7 @@ class TFParamsSaverLoader:
 
     def load(self, load_path):
         loaded_params = joblib.load(load_path)
+        assert len(loaded_params) == len(self._load_placeholders)
         feed_dict = {}
         for p, p_placeholder in zip(loaded_params, self._load_placeholders):
             feed_dict[p_placeholder] = p

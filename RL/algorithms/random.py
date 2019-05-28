@@ -15,7 +15,7 @@ for env_id_no in range(c.num_envs):
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
 if c.render:
-    r.register_agent(EnvRenderingAgent(c, "RenderingAgent", auto_dispatch_on_render=False))
+    r.register_agent(EnvRenderingAgent(c, "RenderingAgent"))
 r.register_agent(PygletLoopAgent(c, "PygletLoopAgent"))
 
 r.run()

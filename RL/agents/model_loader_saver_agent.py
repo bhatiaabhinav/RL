@@ -31,8 +31,12 @@ class ModelLoaderSaverAgent(RL.Agent):
         super().start()
         self.load_model()
 
+    def pre_episode(self, env_id_nos):
+        if self.context.load_every and self.runner.episode_id % self.context.load_every == 0:
+            self.load_model()
+
     def post_episode(self, env_id_nos):
-        if self.runner.episode_id % self.context.save_every == 0:
+        if self.context.save_every and self.runner.episode_id % self.context.save_every == 0:
             self.save_model()
 
     def close(self):

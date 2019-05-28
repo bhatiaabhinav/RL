@@ -67,6 +67,7 @@ class Context:
     np_print_precision = 3
     render = False
     render_mode = 'auto'
+    auto_dispatch_on_render = True
     sensitivity_visualizer = False
     plot_Q = False
     render_interval = 1
@@ -77,6 +78,7 @@ class Context:
     penalty_safe_dqn_mode = False
     safety_stream_names = ['Safety']
     load_model_dir = None
+    load_every = None  # load the model every this many episodes
     atari_framestack_k = 4
     atari_frameskip_k = 4
     atari_noop_max = 30

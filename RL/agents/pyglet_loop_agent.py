@@ -10,11 +10,12 @@ class PygletLoopAgent(RL.Agent):
 
     def tick(self):
         pyglet.clock.tick()
-        for window in pyglet.app.windows:
-            window.switch_to()
-            window.dispatch_events()
-            window.dispatch_event('on_draw')
-            window.flip()
+        if not self.context.auto_dispatch_on_render:
+            for window in pyglet.app.windows:
+                window.switch_to()
+                window.dispatch_events()
+                window.dispatch_event('on_draw')
+                window.flip()
 
     def pre_episode(self, env_id_nos):
         self.tick()

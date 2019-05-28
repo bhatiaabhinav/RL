@@ -41,7 +41,7 @@ if not c.eval_mode:
 
 # rendering and visualizations:
 if c.render:
-    r.register_agent(EnvRenderingAgent(c, "RenderingAgent", auto_dispatch_on_render=False))
+    r.register_agent(EnvRenderingAgent(c, "RenderingAgent"))
 r.register_agent(PygletLoopAgent(c, "PygletLoopAgent"))
 
 # stats and graphs:

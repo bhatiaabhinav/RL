@@ -35,9 +35,9 @@ if not c.eval_mode:
 
 # rendering and visualizations:
 if c.sensitivity_visualizer:
-    r.register_agent(DQNSensitivityVisualizerAgent(c, "DQNSensitivityVisualizerAgent", dqn_act_agent.model, auto_dispatch_on_render=False))
+    r.register_agent(DQNSensitivityVisualizerAgent(c, "DQNSensitivityVisualizerAgent", dqn_act_agent.model))
 if c.render:
-    r.register_agent(EnvRenderingAgent(c, "RenderingAgent", auto_dispatch_on_render=False))
+    r.register_agent(EnvRenderingAgent(c, "RenderingAgent"))
 r.register_agent(PygletLoopAgent(c, "PygletLoopAgent"))
 
 # stats and graphs:
