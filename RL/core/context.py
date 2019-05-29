@@ -19,7 +19,8 @@ class Context:
     logger_level = 'DEBUG'
     seed = 0
     gamma = 0.99
-    eval_mode = False
+    eval_mode = False  # Set this to true to disable learning and only exploit a trained model.
+    force_exploits = [False]  # per env. Does not disable learning.
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
     states_embedding_hidden_layers = []
     init_scale = None
@@ -59,7 +60,7 @@ class Context:
     clip_td_error = False
     video_interval = 50  # every these many episodes, video recording will be done
     save_every = 100  # every these many episodes, save a model
-    exploit_every = 8  # every these many episodes, agent will play without exploration
+    exploit_every = 8  # every these many episodes, agent will play without exploration. Set to None to disable this.
     rnd_mode = False  # whether to use rnd intrinsic reward system
     rnd_num_features = 64  # predict these many random features of obs
     rnd_layers = [128]  # architecture of the rnd_predictor network
@@ -132,13 +133,14 @@ class Context:
     def set_envs(self, envs: List[gym.Env]):
         self.envs.clear()
         self.envs.extend(envs)
+        self.force_exploits = [False] * self.num_envs
 
     @property
     def num_envs(self):
         return len(self.envs)
 
-    def set_epsilon(self, epsilon):
-        self.epsilon = epsilon
+    def set_attribute(self, name, value):
+        setattr(self, name, value)
 
     def _read_args(self):
         for arg in sys.argv[1:]:

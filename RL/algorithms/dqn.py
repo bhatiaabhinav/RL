@@ -1,7 +1,7 @@
 import RL
 from RL.common.atari_wrappers import wrap_atari
 from RL.contexts import DQNContext
-from RL.agents import SeedingAgent, TensorFlowAgent, DQNActAgent, LinearAnnealingAgent, ExperienceBufferAgent, DQNTrainAgent, ParamsCopyAgent, ModelLoaderSaverAgent, EnvRenderingAgent, DQNSensitivityVisualizerAgent, PygletLoopAgent, BasicStatsRecordingAgent, StatsLoggingAgent, TensorboardAgent  # noqa: F401
+from RL.agents import SeedingAgent, TensorFlowAgent, ForceExploitControlAgent, RandomPlayAgent, DQNActAgent, LinearAnnealingAgent, ExperienceBufferAgent, DQNTrainAgent, ParamsCopyAgent, ModelLoaderSaverAgent, EnvRenderingAgent, DQNSensitivityVisualizerAgent, PygletLoopAgent, BasicStatsRecordingAgent, StatsLoggingAgent, TensorboardAgent  # noqa: F401
 import gym
 from RL.common.utils import need_conv_net
 
@@ -25,10 +25,12 @@ r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
 
 # core algo
+r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))
+r.register_agent(RandomPlayAgent(c, "MinimumExperienceAgent", play_for_steps=c.minimum_experience))
 dqn_act_agent = r.register_agent(DQNActAgent(c, "DQNActAgent"))
 r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", dqn_act_agent.model.params))
 if not c.eval_mode:
-    r.register_agent(LinearAnnealingAgent(c, "EpsilonAnnealingAgent", 'epsilon', c.set_epsilon, c.minimum_experience, c.epsilon, c.final_epsilon, c.epsilon_anneal_over))
+    r.register_agent(LinearAnnealingAgent(c, "EpsilonAnnealingAgent", 'epsilon', c.minimum_experience, c.epsilon, c.final_epsilon, c.epsilon_anneal_over))
     exp_buff_agent = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent"))
     dqn_train_agent = r.register_agent(DQNTrainAgent(c, "DQNTrainAgent", dqn_act_agent, exp_buff_agent))
     r.register_agent(ParamsCopyAgent(c, "DQNTargetNetUpdateAgent", dqn_act_agent.model.params, dqn_train_agent.target_model.params, c.target_network_update_every, c.target_network_update_tau))

@@ -12,14 +12,11 @@ class DDPGActAgent(RL.Agent):
         return model.actions(states)
 
     def act(self):
-        if self.runner.num_steps < self.context.minimum_experience:
-            return [self.context.envs[i].action_space.sample() for i in range(self.context.num_envs)]
-        else:
-            exploit_env_ids = list(filter(lambda env_id_no: self.runner.exploit_modes[env_id_no], range(self.context.num_envs)))
-            if len(exploit_env_ids) > 0:
-                exploit_actions = self.exploit_policy(self.model, list(np.asarray(self.runner.obss)[exploit_env_ids]))
-                actions = np.asarray([None] * self.context.num_envs)
-                for env_id_no in exploit_env_ids:
-                    actions[env_id_no] = exploit_actions[env_id_no]
-                return actions
-            # for explore env ids, param noise agent will give actions
+        exploit_env_ids = list(filter(lambda env_id_no: self.context.force_exploits[env_id_no], range(self.context.num_envs)))
+        if len(exploit_env_ids) > 0:
+            exploit_actions = self.exploit_policy(self.model, list(np.asarray(self.runner.obss)[exploit_env_ids]))
+            actions = np.asarray([None] * self.context.num_envs)
+            for env_id_no in exploit_env_ids:
+                actions[env_id_no] = exploit_actions[env_id_no]
+            return actions
+        # for explore env ids, random agent or param noise agent will give actions

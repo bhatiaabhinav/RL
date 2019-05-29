@@ -3,10 +3,10 @@ import gym
 import RL
 from RL.agents import (BasicStatsRecordingAgent, DDPGActAgent,  # noqa: F401
                        DDPGTrainAgent, EnvRenderingAgent,
-                       ExperienceBufferAgent, ModelLoaderSaverAgent,
-                       ParamNoiseAgent, ParamsCopyAgent, PygletLoopAgent,
-                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
-                       TensorFlowAgent)
+                       ExperienceBufferAgent, ForceExploitControlAgent,
+                       ModelLoaderSaverAgent, ParamNoiseAgent, ParamsCopyAgent,
+                       PygletLoopAgent, RandomPlayAgent, SeedingAgent,
+                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.contexts import DDPGContext
@@ -31,6 +31,8 @@ r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
 
 # core algo
+r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))
+r.register_agent(RandomPlayAgent(c, "MinimumExperienceAgent", play_for_steps=c.minimum_experience))
 ddpg_act_agent = r.register_agent(DDPGActAgent(c, "DDPGActAgent"))
 r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", ddpg_act_agent.model.params))
 if not c.eval_mode:

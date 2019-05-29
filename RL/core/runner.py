@@ -26,7 +26,6 @@ class Runner:
         self.rewards = np.zeros(self.num_envs)
         self.dones = np.array([True] * self.num_envs)
         self.infos = [{}] * self.num_envs
-        self.exploit_modes = np.array([False] * self.num_envs)
         self._agent_name_to_agent_map = {}
 
     @property
@@ -121,7 +120,6 @@ class Runner:
                 self.dones[env_id_no] = False
                 self.infos[env_id_no] = {}
                 self.num_episode_stepss[env_id_no] = 0
-                self.exploit_modes[env_id_no] = self.context.eval_mode or self.episode_ids[env_id_no] % self.context.exploit_every == 0
             # pre episode for envs which just got resetted
             if len(need_reset_env_id_nos) > 0:
                 [agent.pre_episode(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]

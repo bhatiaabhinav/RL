@@ -23,7 +23,7 @@ class BasicStatsRecordingAgent(RL.Agent):
     def record(self, env_id_nos):
         for env_id_no in env_id_nos:
             RL.stats.record_append('Env-{0} Episode ID'.format(env_id_no), self.runner.episode_ids[env_id_no])
-            RL.stats.record_append('Env-{0} Episode Type'.format(env_id_no), 'Exploit' if self.runner.exploit_modes[env_id_no] else 'Train')
+            RL.stats.record_append('Env-{0} Episode Type'.format(env_id_no), 'Exploit' if self.context.force_exploits[env_id_no] else 'Train')
             RL.stats.record_append('Env-{0} Episode Length'.format(env_id_no), self.runner.episode_step_ids[env_id_no] + 1)
             RL.stats.record_append('Env-{0} Total Steps'.format(env_id_no), self.runner.step_ids[env_id_no] + 1)
             RL.stats.record_append('Env-{0} Total Frames'.format(env_id_no), self.frameskip * (self.runner.step_ids[env_id_no] + 1))
@@ -34,7 +34,7 @@ class BasicStatsRecordingAgent(RL.Agent):
             RL.stats.record_append('Env-{0} Episode Cost'.format(env_id_no), -self.episode_safety_rewards[env_id_no])
             # exploit rewards
             exploit_rewards = RL.stats.get('Env-{0} Exploit Episode Reward'.format(env_id_no))
-            if self.runner.exploit_modes[env_id_no]:
+            if self.context.force_exploits[env_id_no]:
                 RL.stats.record_append('Env-{0} Exploit Episode Reward'.format(env_id_no), self.episode_rewards[env_id_no])
             elif exploit_rewards is not None and len(exploit_rewards) > 0:
                 RL.stats.record_append('Env-{0} Exploit Episode Reward'.format(env_id_no), exploit_rewards[-1])

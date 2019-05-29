@@ -21,7 +21,7 @@ class ParamNoiseAgent(RL.Agent):
 
     def act(self):
         if self.runner.num_steps >= self.context.minimum_experience:
-            explore_env_ids = list(filter(lambda env_id_no: not self.runner.exploit_modes[env_id_no], range(self.context.num_envs)))
+            explore_env_ids = list(filter(lambda env_id_no: not self.context.force_exploits[env_id_no], range(self.context.num_envs)))
             if len(explore_env_ids) > 0:
                 explore_actions = self.model.actions(list(np.asarray(self.runner.obss)[explore_env_ids]))
                 actions = np.asarray([None] * self.context.num_envs)
@@ -29,18 +29,21 @@ class ParamNoiseAgent(RL.Agent):
                     actions[env_id_no] = explore_actions[env_id_no]
                 self.episode_states.extend(self.runner.obss)
                 return actions
+        else:
+            pass
+            # let the random player act
 
     def copy(self):
         self.all_copier.copy(tau=1)
         self.perturb_copier.copy(tau=1, noise=self.perturb_copier.generate_normal_noise(self.sigma))
 
     def pre_episode(self, env_id_nos):
-        if self.runner.num_steps >= self.context.minimum_experience and 0 in env_id_nos and not self.runner.exploit_modes[0]:
+        if 0 in env_id_nos and not self.context.force_exploits[0]:
             self.copy()
             self.episode_states.clear()
 
     def post_episode(self, env_id_nos):
-        if self.runner.num_steps >= self.context.minimum_experience and 0 in env_id_nos and not self.runner.exploit_modes[0]:
+        if 0 in env_id_nos and not self.context.force_exploits[0]:
             sampled_state_ids = np.random.choice(len(self.episode_states), self.context.minibatch_size)
             sampled_states = np.asarray(self.episode_states)[sampled_state_ids]
             my_actions = self.model.actions(sampled_states)

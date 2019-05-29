@@ -1,17 +1,16 @@
 import gym
 
 import RL
-from RL.agents import (BasicStatsRecordingAgent, SACActAgent,  # noqa: F401
-                       SACTrainAgent, EnvRenderingAgent,
-                       ExperienceBufferAgent, ModelLoaderSaverAgent,
-                       ParamsCopyAgent, PygletLoopAgent,
-                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
-                       TensorFlowAgent)
+import RL.envs
+from RL.agents import (BasicStatsRecordingAgent,  # noqa: F401
+                       EnvRenderingAgent, ExperienceBufferAgent,
+                       ForceExploitControlAgent, ModelLoaderSaverAgent,
+                       ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
+                       SACActAgent, SACTrainAgent, SeedingAgent,
+                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.contexts import SACContext
-import RL.envs
-
 
 c = SACContext()
 
@@ -32,6 +31,8 @@ r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
 
 # core algo
+r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))
+r.register_agent(RandomPlayAgent(c, "MinimumExperienceAgent", play_for_steps=c.minimum_experience))
 sac_act_agent = r.register_agent(SACActAgent(c, "SACActAgent"))
 r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", sac_act_agent.model.get_vars()))
 if not c.eval_mode:
