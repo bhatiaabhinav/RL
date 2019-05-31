@@ -55,6 +55,8 @@ class ExperienceBufferAgent(RL.Agent):
 
     def get_done(self, env_id_no):
         done = self.runner.dones[env_id_no]
+        if done:
+            assert int(done) == 1, "done was True but not 1"
         if done and self.ignore_done_on_timelimit:
             info = self.get_info(env_id_no)
             if 'TimeLimit.truncated' in info:
