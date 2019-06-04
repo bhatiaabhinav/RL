@@ -11,6 +11,7 @@ print("Observation space:", e.observation_space, e.observation_space.low, e.obse
 print("action_space:", e.action_space, e.action_space.low, e.action_space.high)
 
 r = 0
+R = 0
 d = True
 info = {}
 render = True
@@ -18,6 +19,12 @@ render = True
 for i in range(10000):
     if d:
         obs = e.reset()
+        R = 0
         if render:
             e.render()
     obs, r, d, info = e.step(e.action_space.sample())
+    R += r
+    if render:
+        e.render()
+    if d:
+        print(R)
