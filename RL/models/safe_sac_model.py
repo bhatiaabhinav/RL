@@ -8,7 +8,7 @@ class SafeSACModel(SACModel):
         with tf.variable_scope(name):
             violation = actor_critics[-1] - self.context.safety_threshold
             x = violation
-            c = 100  # max gradient
+            c = self.context.safe_sac_penalty_max_grad  # max gradient
             b = self.context.beta
             exp_penalty = -tf.exp(-x / b)
             linear_penalty = c * x + b * c * (np.log(b * c) - 1)  # expression cx + const to make this function cont from where exp_penalty left off.

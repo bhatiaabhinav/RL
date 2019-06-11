@@ -19,6 +19,7 @@ class Context:
     logger_level = 'DEBUG'
     seed = 0
     gamma = 0.99
+    record_returns = False  # set this to true to make basic_stats_recorder record discounted sum of rewards per episode
     eval_mode = False  # Set this to true to disable learning and only exploit a trained model.
     force_exploits = [False]  # per env. Does not disable learning.
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]
@@ -78,6 +79,8 @@ class Context:
     penalty_safe_dqn_multiplier = 10
     penalty_safe_dqn_mode = False
     safety_stream_names = ['Safety']
+    safety_gamma = 0.995
+    safe_sac_penalty_max_grad = 50
     load_model_dir = None
     load_every = None  # load the model every this many episodes
     atari_framestack_k = 4

@@ -41,7 +41,7 @@ class SafeSACTrainAgent(RL.Agent):
         next_states_V = next_states_all_V[0]
         next_states_safety_V = next_states_all_V[1]
         Q_targets = rewards + (1 - dones.astype(np.int)) * (c.gamma ** c.nsteps) * next_states_V
-        safety_Q_targets = safety_rewards + (1 - dones.astype(np.int)) * (c.gamma ** c.nsteps) * next_states_safety_V
+        safety_Q_targets = safety_rewards + (1 - dones.astype(np.int)) * (c.safety_gamma ** c.nsteps) * next_states_safety_V
         return Q_targets, safety_Q_targets
 
     def train(self):
