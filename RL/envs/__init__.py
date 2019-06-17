@@ -10,5 +10,11 @@ gym.register('SafePointRLLab-v0', entry_point='RL.envs.mujoco_safe.point_env_saf
 gym.register(
     id='MyPointCircle-v0',
     entry_point='RL.envs.my_point_circle:SimplePointEnv',
-    max_episode_steps=60
+    max_episode_steps=50
+)
+
+gym.register(
+    id='MyPointCircleFinite-v0',
+    entry_point='RL.envs.my_point_circle:SimplePointEnv',
+    kwargs={"horizon": 50}
 )

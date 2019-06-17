@@ -8,12 +8,14 @@ class SimplePointEnv(gym.Env):
         'render.modes': ['human', 'rgb_array']
     }
 
-    def __init__(self, mass=1, size=40, target_dist=15, xlim=2.5, dt=1, *args, **kwargs):
+    def __init__(self, mass=1, size=40, target_dist=15, xlim=2.5, dt=1, horizon=np.inf, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.size = size  # size of viewport will be 2size x 2size
         self.target_dist = target_dist
         self.xlim = xlim
         self.dt = dt
+        self.time = 0
+        self.horizon = horizon
         self.positon = np.zeros(2)  # x, y
         self.orientation = 0  # angle with x axis
         self.velocity = np.zeros(2)  # vx, vy
@@ -31,7 +33,12 @@ class SimplePointEnv(gym.Env):
             self.positon = np.clip(self.positon, -self.size, self.size)
 
     def get_observation(self):
-        return np.concatenate((self.positon, self.velocity, [np.cos(self.orientation), np.sin(self.orientation)]))
+        if self.horizon == np.inf:
+            # position, velocity and orientation
+            return np.concatenate((self.positon, self.velocity, [np.cos(self.orientation), np.sin(self.orientation)]))
+        else:
+            # include remaining time if it is a finite horizon problem
+            return np.concatenate((self.positon, self.velocity, [np.cos(self.orientation), np.sin(self.orientation)], [1 - self.time / self.horizon]))
 
     def get_reward(self):
         x, y = self.positon
@@ -41,9 +48,9 @@ class SimplePointEnv(gym.Env):
         return reward
 
     def get_done(self):
-        return False
+        return int(self.time / self.dt) >= self.horizon
 
-    def get_inf0(self):
+    def get_info(self):
         return {}
 
     def seed(self, seed):
@@ -53,6 +60,7 @@ class SimplePointEnv(gym.Env):
         self.positon = self.random.standard_normal(size=[2]) * 0.01
         self.velocity = self.random.standard_normal(size=[2]) * 0.1
         self.orientation = np.arctan(self.velocity[1] / self.velocity[0])
+        self.time = 0
         return self.get_observation()
 
     def step(self, action):
@@ -64,10 +72,11 @@ class SimplePointEnv(gym.Env):
         self.velocity = np.array([vx, vy])
         self.positon += self.velocity * self.dt
         self.positon = np.clip(self.positon, -self.size, self.size)
+        self.time += self.dt
         obs = self.get_observation()
         r = self.get_reward()
         d = self.get_done()
-        info = self.get_inf0()
+        info = self.get_info()
         info['Safety_reward'] = -float(np.abs(self.positon[0]) >= self.xlim)
         return obs, r, d, info
 
