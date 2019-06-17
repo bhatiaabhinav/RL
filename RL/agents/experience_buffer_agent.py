@@ -22,7 +22,7 @@ class ExperienceBufferAgent(RL.Agent):
             self.experience_buffer = ExperienceBuffer(length=self.buffer_length)
         self.nstep_buffers = [[]] * self.context.num_envs  # type: List[Experience]
         self.ignore_done_on_timelimit = False
-        if hasattr(self.context.env.spec, 'max_episode_steps') and override_ignore_done_on_timelimit is None:
+        if hasattr(self.context.env.spec, 'max_episode_steps') and self.context.env.spec.max_episode_steps and override_ignore_done_on_timelimit is None:
             RL.logger.info("{0}: This is a timelimit environment. Done signal will be ignored if either TimeLimit.truncated info is provided or if not provided, then if length of episode is same as env.spec.max_episode_steps".format(self.name))
             self.ignore_done_on_timelimit = True
         if override_ignore_done_on_timelimit is not None:
