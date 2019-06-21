@@ -16,12 +16,12 @@ class PointEnv(MujocoEnv, Serializable, gym.Env):
 
     FILE = 'point.xml'
 
-    def __init__(self, 
-            size=40, 
-            align_mode=False,
-            reward_dir=[0.,0.], 
-            target_dist=15.,
-            *args, **kwargs):
+    def __init__(self,
+                 size=40,
+                 align_mode=False,
+                 reward_dir=[0., 0.],
+                 target_dist=15.,
+                 *args, **kwargs):
         self.size = size
         self.align_mode = align_mode
         self.reward_dir = reward_dir
@@ -53,11 +53,11 @@ class PointEnv(MujocoEnv, Serializable, gym.Env):
         self.model.forward()
         next_obs = self.get_current_obs()
         if self.align_mode:
-            reward = max(self.reward_dir[0] * dx + self.reward_dir[1] * dy,0)
+            reward = max(self.reward_dir[0] * dx + self.reward_dir[1] * dy, 0)
         else:
-            x, y = qpos[0,0], qpos[1,0]
+            x, y = qpos[0, 0], qpos[1, 0]
             reward = -y * dx + x * dy
-            reward /= (1 + np.abs( np.sqrt(x **2 + y **2) - self.target_dist))
+            reward /= (1 + np.abs(np.sqrt(x ** 2 + y ** 2) - self.target_dist))
         return Step(next_obs, reward, False)
 
     def get_xy(self):
@@ -75,13 +75,12 @@ class PointEnv(MujocoEnv, Serializable, gym.Env):
     def action_from_key(self, key):
         lb, ub = self.action_bounds
         if key == glfw.KEY_LEFT:
-            return np.array([0, ub[0]*0.3])
+            return np.array([0, ub[0] * 0.3])
         elif key == glfw.KEY_RIGHT:
-            return np.array([0, lb[0]*0.3])
+            return np.array([0, lb[0] * 0.3])
         elif key == glfw.KEY_UP:
             return np.array([ub[1], 0])
         elif key == glfw.KEY_DOWN:
             return np.array([lb[1], 0])
         else:
             return np.array([0, 0])
-

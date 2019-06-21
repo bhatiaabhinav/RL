@@ -9,4 +9,4 @@ class SafePointEnv(SafeMujocoEnv, Serializable, gym.Env):
     MODEL_CLASS = PointEnv
 
     def render(self, mode='human'):
-        super().render()
+        super().render(mode=mode)

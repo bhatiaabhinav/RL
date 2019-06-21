@@ -7,13 +7,14 @@ import numpy as np
 from rllab import spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.base import Step
-from rllab.envs.mujoco.mujoco_env import MujocoEnv, MODEL_DIR
+from rllab.envs.mujoco.mujoco_env import MujocoEnv, MODEL_DIR  # noqa: F401
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 
 
 BIG = 1e6
+
 
 def smooth_abs(x, param):
     return np.sqrt(np.square(x) + np.square(param)) - param
@@ -23,18 +24,18 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
 
     MODEL_CLASS = None
 
-    def __init__(self, nonlinear_reward=False, 
-                       max_path_length_range=None, 
-                       random_start_range=None,
-                       show_limit=True,
-                       lim_size=5,
-                       lim_height=2,
-                       xlim=2.5,
-                       abs_lim=True,
-                       circle_mode=True,
-                       target_dist=15.,
-                       *args,
-                       **kwargs):
+    def __init__(self, nonlinear_reward=False,
+                 max_path_length_range=None,
+                 random_start_range=None,
+                 show_limit=True,
+                 lim_size=5,
+                 lim_height=2,
+                 xlim=2.5,
+                 abs_lim=True,
+                 circle_mode=True,
+                 target_dist=15.,
+                 *args,
+                 **kwargs):
         self._nonlinear_reward = nonlinear_reward
         self._max_path_length_range = max_path_length_range
         self._random_start_range = random_start_range
@@ -44,7 +45,6 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         self._abs_lim = abs_lim
         self._xlim = xlim
 
-
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
             raise "MODEL_CLASS unspecified!"
@@ -53,45 +53,45 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
             tree = ET.parse(xml_path)
             worldbody = tree.find(".//worldbody")
             ET.SubElement(
-                        worldbody, "geom",
-                        name="finish_line",
-                        pos="%f %f %f" % (xlim,
-                                          0,
-                                          lim_height/2),
-                        size="%f %f %f" % (0.1,
-                                           lim_size,
-                                           lim_height),
-                        type="box",
-                        material="",
-                        contype="0",
-                        conaffinity="0",
-                        rgba="0.1 0.1 0.8 0.4"
+                worldbody, "geom",
+                name="finish_line",
+                pos="%f %f %f" % (xlim,
+                                  0,
+                                  lim_height / 2),
+                size="%f %f %f" % (0.1,
+                                   lim_size,
+                                   lim_height),
+                type="box",
+                material="",
+                contype="0",
+                conaffinity="0",
+                rgba="0.1 0.1 0.8 0.4"
             )
             if abs_lim:
                 ET.SubElement(
-                            worldbody, "geom",
-                            name="finish_line2",
-                            pos="%f %f %f" % (-xlim,
-                                              0,
-                                              lim_height/2),
-                            size="%f %f %f" % (0.1,
-                                               lim_size,
-                                               lim_height),
-                            type="box",
-                            material="",
-                            contype="0",
-                            conaffinity="0",
-                            rgba="0.1 0.1 0.8 0.4"
+                    worldbody, "geom",
+                    name="finish_line2",
+                    pos="%f %f %f" % (-xlim,
+                                      0,
+                                      lim_height / 2),
+                    size="%f %f %f" % (0.1,
+                                       lim_size,
+                                       lim_height),
+                    type="box",
+                    material="",
+                    contype="0",
+                    conaffinity="0",
+                    rgba="0.1 0.1 0.8 0.4"
                 )
             _, file_path = tempfile.mkstemp(text=True)
             tree.write(file_path)
         else:
-            file_path = xml_path                
+            file_path = xml_path
 
         inner_env = model_cls(*args, file_path=file_path, **kwargs)
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, inner_env)
-        
+
         # new code for caching obs / act space
         shp = self.get_current_obs().shape
         ub = BIG * np.ones(shp)
@@ -103,9 +103,9 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
 
     @property
     def observation_space(self):
-        #shp = self.get_current_obs().shape
-        #ub = BIG * np.ones(shp)
-        #return spaces.Box(ub * -1, ub)
+        # shp = self.get_current_obs().shape
+        # ub = BIG * np.ones(shp)
+        # return spaces.Box(ub * -1, ub)
         return self._cached_observation_space
 
     @property
@@ -115,7 +115,6 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
     @property
     def action_bounds(self):
         return self.action_space.bounds
-
 
     def get_current_obs(self):
         return np.concatenate([
@@ -128,8 +127,8 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         self.wrapped_env.reset(init_state)
         self._step = 0
         if self._random_start_range is not None:
-            l,u = self._random_start_range
-            random_start = np.random.rand()*(u - l) + l
+            l, u = self._random_start_range
+            random_start = np.random.rand() * (u - l) + l
             x = self.wrapped_env.model.data.qpos.copy()
             x[0][0] = random_start
             self.wrapped_env.model.data.qpos = x
@@ -137,7 +136,6 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         if self._max_path_length_range is not None:
             self._last_step = np.random.randint(*self._max_path_length_range)
         return self.get_current_obs()
-
 
     def step(self, action):
         _, reward, done, info = self.wrapped_env.step(action)
@@ -147,17 +145,17 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
             pos = self.wrapped_env.get_body_com("torso")
             # vel = self.wrapped_env.get_body_comvel("torso")
             # dt = self.wrapped_env.model.opt.timestep
-            x, y = pos[0], pos[1]
+            # x, y = pos[0], pos[1]
+            x = pos[0]
             # dx, dy = vel[0], vel[1]
             # reward = -y * dx + x * dy
-            # reward /= (1 + np.abs(np.sqrt(x **2 + y **2) - self._target_dist))
+            # reward /= (1 + np.abs(np.sqrt(x ** 2 + y ** 2) - self._target_dist))
             # let reward come from point env.
             if self._abs_lim:
                 safety_reward = -float(np.abs(x) >= self._xlim)
             else:
                 safety_reward = -float(x >= self._xlim)
             info['Safety_reward'] = safety_reward
-
 
         if self._nonlinear_reward:
             reward *= np.abs(reward)
@@ -178,9 +176,8 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         logger.record_tabular('MinForwardProgress', np.min(progs))
         logger.record_tabular('StdForwardProgress', np.std(progs))
 
-        xs = [max(path["observations"][:,-3]) for path in paths]
+        xs = [max(path["observations"][:, -3]) for path in paths]
         logger.record_tabular('AverageFarthestXCoord', np.mean(xs))
         logger.record_tabular('MaxFarthestXCoord', np.max(xs))
         logger.record_tabular('MinFarthestXCoord', np.min(xs))
         logger.record_tabular('StdFarthestXCoord', np.std(xs))
-

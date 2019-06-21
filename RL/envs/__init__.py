@@ -18,3 +18,16 @@ gym.register(
     entry_point='RL.envs.my_point_circle:SimplePointEnv',
     kwargs={"horizon": 50}
 )
+
+gym.register(
+    id='HalfCheetahSafe-v2',
+    entry_point='RL.envs.half_cheetah_safe:HalfCheetahSafeEnv',
+    kwargs={'max_speed': 1.0},
+    max_episode_steps=200
+)
+
+gym.register(
+    id='HalfCheetahSafeFinite-v2',
+    entry_point='RL.envs.half_cheetah_safe:HalfCheetahSafeEnv',
+    kwargs={'max_speed': 1.0, 'horizon': 200}
+)
