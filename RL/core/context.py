@@ -27,6 +27,8 @@ class Context:
     init_scale = None
     normalize_observations = True
     normalize_actions = False
+    encode_actions = False
+    actions_encoding_layers = [20]
     hidden_layers = [512]  # hidden layers
     layer_norm = False
     num_episodes_to_run = int(5e7)

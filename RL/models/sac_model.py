@@ -22,6 +22,7 @@ class SACModel:
                 self._actions_running_stats = TfRunningStats(list(self.action_space.shape), "running_stats/actions")
             # placeholders:
             self._states_placeholder, states_input = tf_inputs([None] + list(self.state_space.shape), self.state_space.dtype, "states", cast_to_dtype=tf.float32)
+            self._next_states_placeholder, next_states_input = tf_inputs([None] + list(self.state_space.shape), self.state_space.dtype, "next_states", cast_to_dtype=tf.float32)
             self._actions_placeholder, actions_input = tf_inputs([None] + list(self.action_space.shape), self.action_space.dtype, "actions_input", cast_to_dtype=tf.float32)
             self._actions_noise_placholder, actions_noise_input = tf_inputs([None] + list(self.action_space.shape), tf.float32, "actions_noise_input")
             self._actor_loss_coeffs_placeholder, actor_loss_coeffs_input = tf_inputs([self.num_critics], tf.float32, "actor_loss_coefficients")
@@ -30,24 +31,50 @@ class SACModel:
             self._critics_targets_placeholder, critics_targets_input = tf_inputs([self.num_critics, None], tf.float32, "critics_targets")
             self._valuefns_loss_coeffs_placeholder, valuefns_loss_coeffs_input = tf_inputs([self.num_valuefns], tf.float32, "valuefns_loss_coefficients")
             self._valuefns_targets_placeholder, valuefns_targets_input = tf_inputs([self.num_valuefns, None], tf.float32, "valuefns_targets")
+            # action encode:
+            if self.context.encode_actions:
+                encoded_actions = self.tf_actions_encoder(actions_input, "actions_encoder")
+            else:
+                encoded_actions = actions_input
             # normalized inputs:
-            states_input_normalized = self._states_running_stats.normalize(states_input, "states_input_normalize") if self.context.normalize_observations else states_input
-            actions_input_normalized = self._actions_running_stats.normalize(actions_input, "actions_input_normalize") if self.context.normalize_actions else actions_input
+            if self.context.normalize_observations:
+                norm_states_input = self._states_running_stats.normalize(states_input, "states_input_normalize")
+                norm_next_states_input = self._states_running_stats.normalize(next_states_input, "next_states_input_normalize")
+            else:
+                norm_states_input = states_input
+                norm_next_states_input = next_states_input
+            if self.context.normalize_actions:
+                norm_actions_input = self._actions_running_stats.normalize(encoded_actions, "actions_input_normalize")
+            else:
+                norm_actions_input = encoded_actions
             # critics:
-            self._critics = [self.tf_critic(states_input_normalized, actions_input_normalized, "critic{0}".format(i)) for i in range(self.num_critics)]
+            self._critics = [self.tf_critic(norm_states_input, norm_actions_input, "critic{0}".format(i)) for i in range(self.num_critics)]
             self._critics_loss = self.tf_critics_loss(critics_loss_coeffs_input, self._critics, critics_targets_input, "critics_loss")
             # value functions:
-            self._valuefns = [self.tf_value_fn(states_input_normalized, "valuefn{0}".format(i)) for i in range(self.num_valuefns)]
+            self._valuefns = [self.tf_value_fn(norm_states_input, "valuefn{0}".format(i)) for i in range(self.num_valuefns)]
             self._valuefns_loss = self.tf_valuefns_loss(valuefns_loss_coeffs_input, self._valuefns, valuefns_targets_input, "valuefns_loss")
             if self.num_actors:
                 # actor
-                self._actor_means, self._actor_logstds, self._actor_actions, self._actor_logpis = self.tf_actor(states_input_normalized, actions_noise_input, 'actor')
-                # actor normalized
-                actor_actions_normalized = self._actions_running_stats.normalize(self._actor_actions, "actor_actions_normalize") if self.context.normalize_actions else self._actor_actions
+                self._actor_means, self._actor_logstds, self._actor_actions, self._actor_logpis = self.tf_actor(norm_states_input, actions_noise_input, 'actor')
+                # actor decode
+                if self.context.encode_actions:
+                    self._decoded_actions = self._tf_actions_decoder(self._actor_actions, "actions_decoder")
+                else:
+                    self._decoded_actions = self._actor_actions
+                # actor normalized for actor critic
+                if self.context.normalize_actions:
+                    norm_actor_actions = self._actions_running_stats.normalize(self._actor_actions, "actor_actions_normalize")
+                else:
+                    norm_actor_actions = self._actor_actions
                 # actor-critics
-                self._actor_critics = [self.tf_critic(states_input_normalized, actor_actions_normalized, "critic{0}".format(i), reuse=True) for i in range(self.num_critics)]
+                self._actor_critics = [self.tf_critic(norm_states_input, norm_actor_actions, "critic{0}".format(i), reuse=True) for i in range(self.num_critics)]
                 # actor-loss:
                 self._actor_loss = self.tf_actor_loss(actor_loss_coeffs_input, actor_loss_alpha_input, self._actor_critics, self._actor_logpis, "actor_loss")
+                # next_state_predictor:
+                if self.context.encode_actions:
+                    self._predicted_next_state = self._tf_next_state_predictor(norm_states_input, norm_actions_input, "next_states_predictor")
+                    self._encoder_loss = self.tf_encoder_loss("actions_encoder_loss")
+                    self._decoder_loss = self.tf_decoder_loss("actions_decoder_loss")
 
     def check_assertions(self):
         if not hasattr(self.state_space, 'dtype'):
@@ -58,6 +85,16 @@ class SACModel:
         assert hasattr(self.action_space, 'shape') and hasattr(self.action_space, 'low') and hasattr(self.action_space, 'high')
         assert len(self.action_space.shape) == 1
         assert self.num_actors <= 1, "There can be atmost 1 actor"
+
+    def tf_actions_encoder(self, actions, name, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(name, reuse=reuse):
+            encoded_actions = dense_net(actions, self.context.actions_encoding_layers[:-1], self.context.activation_fn, self.context.actions_encoding_layers[-1], lambda x: x, "dense_net", self.context.layer_norm, None, reuse=reuse)
+            return encoded_actions
+
+    def tf_actions_decoder(self, encoded_actions, name, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(name, reuse=reuse):
+            decoded_actions = dense_net(encoded_actions, self.context.actions_encoding_layers[:-1][::-1], self.context.activation_fn, self.action_space.shape[0], lambda x: x, "dense_net", self.context.layer_norm, None, reuse=reuse)
+            return decoded_actions
 
     def tf_actor_activation_fn(self, means, logstds, noise, name):
         with tf.variable_scope(name):
