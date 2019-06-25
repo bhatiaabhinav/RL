@@ -28,7 +28,12 @@ class Context:
     normalize_observations = True
     normalize_actions = False
     encode_actions = False
-    actions_encoding_layers = [20]
+    action_embedding_size = 16
+    action_embedding_hidden_layers = []
+    one_hot_discrete_action_space = False
+    predictor_hidden_layers = [64]
+    encode_states = False
+    state_embedding_size = 256
     hidden_layers = [512]  # hidden layers
     layer_norm = False
     num_episodes_to_run = int(5e7)
