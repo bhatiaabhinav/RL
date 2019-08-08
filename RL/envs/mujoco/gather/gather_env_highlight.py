@@ -205,9 +205,9 @@ class GatherEnv(Env, Serializable):
                        'radians')
     def __init__(
             self,
-            n_apples=8,
+            n_apples=2,
             n_bombs=8,
-            apple_reward=1,
+            apple_reward=10,
             bomb_cost=1,
             activity_range=6.,
             robot_object_spacing=2.,

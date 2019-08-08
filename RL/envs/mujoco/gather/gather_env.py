@@ -19,7 +19,7 @@ from rllab.mujoco_py import MjViewer, MjModel, mjcore, mjlib, \
     mjextra, glfw
 
 
-from sandbox.cpo.envs.mujoco.point_env import PointEnv
+from RL.envs.mujoco.point_env import PointEnv
 
 APPLE = 0
 BOMB = 1
@@ -159,9 +159,9 @@ class GatherEnv(Env, Serializable):
                        'radians')
     def __init__(
             self,
-            n_apples=8,
+            n_apples=2,
             n_bombs=8,
-            apple_reward=1,
+            apple_reward=10,
             bomb_cost=1,
             activity_range=6.,
             robot_object_spacing=2.,
@@ -182,6 +182,7 @@ class GatherEnv(Env, Serializable):
         self.sensor_range = sensor_range
         self.sensor_span = sensor_span
         self.objects = []
+        self.time = 0
         super(GatherEnv, self).__init__(*args, **kwargs)
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
@@ -224,12 +225,15 @@ class GatherEnv(Env, Serializable):
         # pylint: enable=not-callable
         self.inner_env = inner_env
         if model_cls == PointEnv:
+            import RL
+            RL.logger.log("Inner env is PointEnv")
             self.inner_env.size = self.activity_range
         Serializable.quick_init(self, locals())
 
     def reset(self):
         # super(GatherMDP, self).reset()
         self.objects = []
+        self.time = 0
         existing = set()
         while len(self.objects) < self.n_apples:
             x = np.random.randint(-self.activity_range / 2,
@@ -263,13 +267,16 @@ class GatherEnv(Env, Serializable):
 
     def step(self, action):
         _, _, done, info = self.inner_env.step(action)
+        self.time += 1
         info['apples'] = 0
         info['bombs'] = 0
         if done:
+            assert not self.__class__.MODEL_CLASS == PointEnv, "Inner env done happened. Shouldnt happen for point env"
             return Step(self.get_current_obs(), -10, done, **info)
         com = self.inner_env.get_body_com("torso")
         x, y = com[:2]
         reward = 0
+        info['Safety_reward'] = 0
         new_objs = []
         for obj in self.objects:
             ox, oy, typ = obj
@@ -277,14 +284,19 @@ class GatherEnv(Env, Serializable):
             if (ox - x) ** 2 + (oy - y) ** 2 < self.catch_range ** 2:
                 if typ == APPLE:
                     reward = reward + self.apple_reward
+                    info['Safety_reward'] = info['Safety_reward'] - 0
                     info['apples'] = 1
                 else:
                     reward = reward - self.bomb_cost
+                    info['Safety_reward'] = info['Safety_reward'] - 1
                     info['bombs'] = 1
             else:
                 new_objs.append(obj)
         self.objects = new_objs
         done = len(self.objects) == 0
+        if done:
+            import RL
+            RL.logger.log('done!')
         return Step(self.get_current_obs(), reward, done, **info)
 
     def get_readings(self):
@@ -309,6 +321,7 @@ class GatherEnv(Env, Serializable):
                 continue
             angle = math.atan2(oy - robot_y, ox - robot_x) - ori
             if math.isnan(angle):
+                print("y={0}, x={1}".format(oy - robot_y, ox - robot_x))
                 import ipdb
                 ipdb.set_trace()
             angle = angle % (2 * math.pi)
@@ -334,7 +347,7 @@ class GatherEnv(Env, Serializable):
         # return sensor data along with data about itself
         self_obs = self.inner_env.get_current_obs()
         apple_readings, bomb_readings = self.get_readings()
-        return np.concatenate([self_obs, apple_readings, bomb_readings])
+        return np.concatenate([self_obs, apple_readings, bomb_readings, [1 - self.time / 15]])
 
     def get_viewer(self):
         if self.inner_env.viewer is None:
@@ -360,7 +373,7 @@ class GatherEnv(Env, Serializable):
     @overrides
     def observation_space(self):
         dim = self.inner_env.observation_space.flat_dim
-        newdim = dim + self.n_bins * 2
+        newdim = dim + self.n_bins * 2 + 1
         ub = BIG * np.ones(newdim)
         return spaces.Box(ub * -1, ub)
 
