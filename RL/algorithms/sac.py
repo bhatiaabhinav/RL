@@ -2,12 +2,13 @@ import gym
 
 import RL
 import RL.envs
-from RL.agents import (BasicStatsRecordingAgent,  # noqa: F401
-                       EnvRenderingAgent, ExperienceBufferAgent,
+from RL.agents import BasicStatsRecordingAgent  # noqa: F401
+from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
                        ForceExploitControlAgent, ModelLoaderSaverAgent,
                        ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
-                       SACActAgent, SACTrainAgent, SeedingAgent,
-                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
+                       RewardScalingAgent, SACActAgent, SACTrainAgent,
+                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
+                       TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.contexts import SACContext
@@ -29,6 +30,7 @@ r = RL.Runner(c, "runner")
 # basics:
 r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
+r.register_agent(RewardScalingAgent(c, "RewardScalingAgent"))
 
 # core algo
 r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))
@@ -51,6 +53,7 @@ for env_id_no in range(c.num_envs):
     keys = list(filter(lambda k: k.startswith('Env-' + str(env_id_no)), RL.stats.stats_dict.keys()))
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
+
 # algo specific stats and graphs:
 misc_keys = ['ValueFn Loss', 'Critic Loss', 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Action LogStd", "Average Action LogPi"]
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))

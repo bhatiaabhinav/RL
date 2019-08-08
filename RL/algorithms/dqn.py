@@ -1,10 +1,16 @@
-import RL
-from RL.common.atari_wrappers import wrap_atari
-from RL.contexts import DQNContext
-from RL.agents import SeedingAgent, TensorFlowAgent, ForceExploitControlAgent, RandomPlayAgent, DQNActAgent, LinearAnnealingAgent, ExperienceBufferAgent, DQNTrainAgent, ParamsCopyAgent, ModelLoaderSaverAgent, EnvRenderingAgent, DQNSensitivityVisualizerAgent, PygletLoopAgent, BasicStatsRecordingAgent, StatsLoggingAgent, TensorboardAgent  # noqa: F401
 import gym
-from RL.common.utils import need_conv_net
 
+import RL
+from RL.agents import (BasicStatsRecordingAgent, DQNActAgent,  # noqa: F401
+                       DQNSensitivityVisualizerAgent, DQNTrainAgent,
+                       EnvRenderingAgent, ExperienceBufferAgent,
+                       ForceExploitControlAgent, LinearAnnealingAgent,
+                       ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
+                       RandomPlayAgent, RewardScalingAgent, SeedingAgent,
+                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
+from RL.common.atari_wrappers import wrap_atari
+from RL.common.utils import need_conv_net
+from RL.contexts import DQNContext
 
 c = DQNContext()
 
@@ -23,6 +29,7 @@ r = RL.Runner(c, "runner")
 # basics:
 r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
+r.register_agent(RewardScalingAgent(c, "RewardScalingAgent"))
 
 # core algo
 r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))

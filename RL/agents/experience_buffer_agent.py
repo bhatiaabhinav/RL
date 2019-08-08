@@ -5,7 +5,7 @@ import numpy as np
 
 
 class ExperienceBufferAgent(RL.Agent):
-    def __init__(self, context: RL.Context, name, nsteps=None, buffer_length=None, buffer_size_MB=None, override_ignore_done_on_timelimit=None):
+    def __init__(self, context: RL.Context, name, nsteps=None, buffer_length=None, buffer_size_MB=None, ignore_done_on_timelimit=None):
         super().__init__(context, name)
         self.nsteps = nsteps
         self.buffer_length = buffer_length
@@ -21,12 +21,13 @@ class ExperienceBufferAgent(RL.Agent):
         else:
             self.experience_buffer = ExperienceBuffer(length=self.buffer_length)
         self.nstep_buffers = [[]] * self.context.num_envs  # type: List[Experience]
-        self.ignore_done_on_timelimit = False
-        if hasattr(self.context.env.spec, 'max_episode_steps') and self.context.env.spec.max_episode_steps and override_ignore_done_on_timelimit is None:
-            RL.logger.info("{0}: This is a timelimit environment. Done signal will be ignored if either TimeLimit.truncated info is provided or if not provided, then if length of episode is same as env.spec.max_episode_steps".format(self.name))
+        if ignore_done_on_timelimit is None:
+            ignore_done_on_timelimit = self.context.ignore_done_on_timelimit
+        if hasattr(self.context.env.spec, 'max_episode_steps') and self.context.env.spec.max_episode_steps and ignore_done_on_timelimit:
+            RL.logger.info("{0}: This is a timelimit environment. Done signal will be ignored if either TimeLimit.truncated info is provided or if not provided, then if length of episode is same as env.spec.max_episode_steps. Set ignore_done_on_timelimit to false to disable this behavior.".format(self.name))
             self.ignore_done_on_timelimit = True
-        if override_ignore_done_on_timelimit is not None:
-            self.ignore_done_on_timelimit = override_ignore_done_on_timelimit
+        else:
+            self.ignore_done_on_timelimit = False
 
     def add_to_experience_buffer(self, exp: Experience, env_id_no):
         nstep_buffer = self.nstep_buffers[env_id_no]

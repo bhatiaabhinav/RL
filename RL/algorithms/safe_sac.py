@@ -2,12 +2,13 @@ import gym
 
 import RL
 import RL.envs
-from RL.agents import (BasicStatsRecordingAgent,  # noqa: F401
-                       EnvRenderingAgent, ExperienceBufferAgent,
+from RL.agents import BasicStatsRecordingAgent  # noqa: F401
+from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
                        ForceExploitControlAgent, ModelLoaderSaverAgent,
                        ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
-                       SafeSACActAgent, SafeSACTrainAgent, SeedingAgent,
-                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
+                       RewardScalingAgent, SafeSACActAgent, SafeSACTrainAgent,
+                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
+                       TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.contexts import SACContext
@@ -29,6 +30,7 @@ r = RL.Runner(c, "runner")
 # basics:
 r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
+r.register_agent(RewardScalingAgent(c, "RewardScalingAgent"))
 
 # core algo
 r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))

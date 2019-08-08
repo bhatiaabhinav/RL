@@ -19,7 +19,10 @@ class Context:
     logger_level = 'DEBUG'
     seed = 0
     gamma = 0.99
+    ignore_done_on_timelimit = True  # For time limit environments, whether to ignore done signal during bellman update
     record_returns = False  # set this to true to make basic_stats_recorder record discounted sum of rewards per episode
+    reward_scaling = 1  # scale environment rewards by this factor
+    record_unscaled_rewards = True  # To make basic_stats_recorder compensate for reward scaling while recording stats.
     eval_mode = False  # Set this to true to disable learning and only exploit a trained model.
     force_exploits = [False]  # per env. Does not disable learning.
     convs = [(32, 8, 4), (64, 4, 2), (64, 3, 1)]

@@ -5,8 +5,9 @@ from RL.agents import (BasicStatsRecordingAgent, DDPGActAgent,  # noqa: F401
                        DDPGTrainAgent, EnvRenderingAgent,
                        ExperienceBufferAgent, ForceExploitControlAgent,
                        ModelLoaderSaverAgent, ParamNoiseAgent, ParamsCopyAgent,
-                       PygletLoopAgent, RandomPlayAgent, SeedingAgent,
-                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
+                       PygletLoopAgent, RandomPlayAgent, RewardScalingAgent,
+                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
+                       TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
 from RL.common.utils import need_conv_net
 from RL.contexts import DDPGContext
@@ -29,6 +30,7 @@ r = RL.Runner(c, "runner")
 # basics:
 r.register_agent(TensorFlowAgent(c, "TensorFlowAgent"))
 r.register_agent(SeedingAgent(c, "SeedingAgent"))
+r.register_agent(RewardScalingAgent(c, "RewardScalingAgent"))
 
 # core algo
 r.register_agent(ForceExploitControlAgent(c, "ExploitControlAgent"))
