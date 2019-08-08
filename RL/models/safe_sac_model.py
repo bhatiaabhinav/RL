@@ -7,14 +7,15 @@ class SafeSACModel(SACModel):
     def tf_actor_loss(self, actor_loss_coeffs, actor_loss_alpha, actor_critics, actor_logpis, name):
         with tf.variable_scope(name):
             violation = actor_critics[-1] - self.context.safety_threshold
-            x = violation
             c = self.context.safe_sac_penalty_max_grad  # max gradient
             b = self.context.beta
-            exp_penalty = -tf.exp(-x / b)
+            x = violation
+            min_x = -b * np.log(b * c)  # at this point, grad of exp_penalty is c.
+            exp_penalty = -tf.exp(-tf.maximum(x, min_x) / b)
             if c:
                 linear_penalty = c * x + b * c * (np.log(b * c) - 1)  # expression cx + const to make this function cont from where exp_penalty left off.
-                switch_at = -b * np.log(b * c)  # at this point, grad of exp_penalty is c. and the overall penalty should switch to a linear_penalty
-                penalty = (tf.maximum(0.0, x - switch_at) / (x - switch_at)) * exp_penalty + (tf.minimum(0.0, x - switch_at) / (x - switch_at)) * linear_penalty
+                step_fn = (1 + tf.sign(x - min_x)) / 2
+                penalty = (1 - step_fn) * linear_penalty + step_fn * exp_penalty
             else:
                 penalty = exp_penalty
             log_feasibility = penalty
