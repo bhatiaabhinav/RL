@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 import RL
-from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_scale, tf_safe_softmax, need_conv_net
+from RL.common.utils import TfRunningStats, dense_net, auto_conv_dense_net, tf_training_step, tf_safe_softmax, need_conv_net
 
 
 class Brain:
@@ -54,12 +54,12 @@ class Brain:
         with tf.variable_scope(Brain.Scopes.model.value):
             self._states_placeholder = self._tf_states_placeholder(
                 Brain.Scopes.states_placholder.value)
-            self._states_rms = TfRunningStats(
-                list(self.context.env.observation_space.shape), Brain.Scopes.states_rms.value)
-            self._states_normalized = self._states_rms.normalize(
-                self._states_placeholder) if self.context.normalize_observations else self._states_placeholder
-            self._states_embeddings = self._tf_states_embeddings(
-                self._states_normalized)
+            if self.context.normalize_observations:
+                self._states_rms = TfRunningStats(list(self.context.env.observation_space.shape), Brain.Scopes.states_rms.value)
+                self._states_normalized = self._states_rms.normalize(self._states_placeholder)
+            else:
+                self._states_normalized = self._states_placeholder
+            self._states_embeddings = self._tf_states_embeddings(self._states_normalized)
             self._Qs, self._Vs = [], []
             self._Q_input_sensitivities = []
             for head_id in range(self.num_heads):
@@ -84,8 +84,9 @@ class Brain:
     def _setup_training(self):
         with tf.variable_scope(Brain.Scopes.training.value):
             # For updating states running stats:
-            self._update_states_rms = self._states_rms.update(
-                self._states_placeholder[0], Brain.Scopes.update_states_rms.value)
+            if self.context.normalize_observations:
+                self._update_states_rms = self._states_rms.update(
+                    self._states_placeholder[0], Brain.Scopes.update_states_rms.value)
             # Individual losses:
             self._desired_Q_placeholders, self._Q_losses, self._Q_mpes = [], [], []
             for head_id in range(self.num_heads):
@@ -128,8 +129,8 @@ class Brain:
             placeholder = tf.placeholder(dtype=self.context.env.observation_space.dtype, shape=[
                                          None] + list(self.context.env.observation_space.shape))
             states = tf.cast(placeholder, tf.float32)
-            states = tf_scale(states, self.context.env.observation_space.low,
-                              self.context.env.observation_space.high, -1, 1, "scale_minus1_to_1")
+            # states = tf_scale(states, self.context.env.observation_space.low,
+            #                   self.context.env.observation_space.high, -1, 1, "scale_minus1_to_1")
             return states
 
     def _tf_actions_placeholder(self):

@@ -8,8 +8,10 @@ from RL.agents import (BasicStatsRecordingAgent, DQNActAgent,  # noqa: F401
                        ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
                        RandomPlayAgent, RewardScalingAgent, SeedingAgent,
                        StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
-from RL.common.atari_wrappers import wrap_atari
+from RL.common.atari_wrappers import (ClipRewardEnv, EpisodicLifeEnv,
+                                      FireResetEnv, NoopResetEnv, wrap_atari)
 from RL.common.utils import need_conv_net
+from RL.common.wrappers import FrameSkipWrapper
 from RL.contexts import DQNContext
 
 c = DQNContext()
@@ -19,6 +21,15 @@ def make(id):
     env = gym.make(id)  # type: gym.Env
     if need_conv_net(env.observation_space):
         env = wrap_atari(env, episode_life=c.atari_episode_life, clip_rewards=c.atari_clip_rewards, framestack_k=c.atari_framestack_k, frameskip_k=c.atari_frameskip_k, noop_max=c.atari_noop_max)
+    if 'ram' in id and 'v4' in id:  # for playing atari from ram
+        if c.atari_episode_life:
+            env = EpisodicLifeEnv(env)
+        env = NoopResetEnv(env, noop_max=30)
+        if 'FIRE' in env.unwrapped.get_action_meanings():
+            env = FireResetEnv(env)
+        env = FrameSkipWrapper(env, skip=c.atari_frameskip_k)
+        if c.atari_clip_rewards:
+            env = ClipRewardEnv(env)
     return env
 
 

@@ -127,6 +127,24 @@ class DiscreteToContinousWrapper(gym.Wrapper):
 MaxEpisodeStepsWrapper = TimeLimit
 
 
+class FrameSkipWrapper(gym.Wrapper):
+    def __init__(self, env, skip=4):
+        super().__init__(env)
+        self.skip = skip
+
+    def reset(self):
+        return self.env.reset()
+
+    def step(self, action):
+        r_total = 0
+        for count in range(self.skip):
+            obs, r, d, info = self.env.step(action)
+            r_total += r
+            if d:
+                break
+        return obs, r_total, d, info
+
+
 class RenderWrapper(gym.Wrapper):
     def __init__(self, env, render_interval=1, vsync=True, caption="Renderer"):
         super().__init__(env)
