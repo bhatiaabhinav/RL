@@ -7,8 +7,9 @@ from RL.common.utils import need_conv_net
 
 
 class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
-    def __init__(self, context: RL.Context, name, dqn_model: Brain, head_id=0, episode_interval=None):
+    def __init__(self, context: RL.Context, name, dqn_model: Brain, head_id=0, auto_dispatch_on_render=None, episode_interval=None):
         super().__init__(context, name, episode_interval)
+        self.auto_dispatch_on_render = self.context.auto_dispatch_on_render if auto_dispatch_on_render is None else auto_dispatch_on_render
         self.model = dqn_model  # type: Brain
         self.head_id = head_id
 
@@ -25,7 +26,7 @@ class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
         frame = np.asarray(Image.fromarray(
             frame).resize((w, h), resample=Image.BILINEAR))
         mixed = 0.9 * frame + 0.1 * orig
-        self.window.set_image(mixed.astype(np.uint8), self.context.auto_dispatch_on_render)
+        self.window.set_image(mixed.astype(np.uint8), self.auto_dispatch_on_render)
 
     def start(self):
         if need_conv_net(self.context.env.observation_space):
