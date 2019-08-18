@@ -1,11 +1,12 @@
 import RL
 import numpy as np
+import time
 
 
 class BasicStatsRecordingAgent(RL.Agent):
     def __init__(self, context: RL.Context, name, frameskip=1, record_returns=None, record_unscaled_rewards=None, reward_scaling=None):
         super().__init__(context, name)
-        keys = ['Env-{0} Episode ID', 'Env-{0} Episode Type', 'Env-{0} Episode Length', 'Env-{0} Total Steps', 'Env-{0} Total Frames', 'Env-{0} Total Episodes', 'Env-{0} Episode Timestamp', 'Env-{0} Episode Reward', 'Env-{0} Exploit Episode Reward', 'Env-{0} Av100 Episode Reward', 'Env-{0} Av100 Exploit Episode Reward', 'Env-{0} Episode Cost']
+        keys = ['Env-{0} Episode ID', 'Env-{0} Episode Type', 'Env-{0} Episode Length', 'Env-{0} Total Steps', 'Env-{0} Total Frames', 'Env-{0} Total Episodes', 'Env-{0} Episode Timestamp', 'Env-{0} Episode Reward', 'Env-{0} Exploit Episode Reward', 'Env-{0} Av100 Episode Reward', 'Env-{0} Av100 Exploit Episode Reward', 'Env-{0} Episode Cost', 'Env-{0} Episode FPS']
         self.frameskip = frameskip
         self.record_returns = context.record_returns if record_returns is None else record_returns
         self.record_unscaled_rewards = context.record_unscaled_rewards if record_unscaled_rewards is None else record_unscaled_rewards
@@ -30,6 +31,7 @@ class BasicStatsRecordingAgent(RL.Agent):
             self.episode_safety_rewards += (self.context.safety_gamma ** self.runner.episode_step_ids) * safety_rewards * self._reward_unscaling
         else:
             self.episode_safety_rewards += safety_rewards * self._reward_unscaling
+        self.episode_steps += 1
 
     def record(self, env_id_nos):
         for env_id_no in env_id_nos:
@@ -58,10 +60,14 @@ class BasicStatsRecordingAgent(RL.Agent):
             av_rpe_exploit = np.mean(exploit_rewards[-100:])
             RL.stats.record('Env-{0} Av100 Episode Reward'.format(env_id_no), av_rpe)
             RL.stats.record('Env-{0} Av100 Exploit Episode Reward'.format(env_id_no), av_rpe_exploit)
+            RL.stats.record_append('Env-{0} Episode FPS'.format(env_id_no), self.episode_fps)
 
     def pre_episode(self, env_id_nos):
         self.episode_rewards[env_id_nos] = 0
         self.episode_safety_rewards[env_id_nos] = 0
+        self.episode_steps = 0
+        self.ep_start_time = time.time()
 
     def post_episode(self, env_id_nos):
+        self.episode_fps = self.episode_steps / (time.time() - self.ep_start_time)
         self.record(env_id_nos)
