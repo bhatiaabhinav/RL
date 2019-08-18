@@ -4,12 +4,13 @@ import RL
 import RL.envs
 from RL.agents import BasicStatsRecordingAgent  # noqa: F401
 from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
-                       ForceExploitControlAgent, ModelLoaderSaverAgent,
-                       ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
-                       RewardScalingAgent, SafeSACActAgent, SafeSACTrainAgent,
-                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
-                       TensorFlowAgent)
+                       ForceExploitControlAgent, MatplotlibPlotAgent,
+                       ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
+                       RandomPlayAgent, RewardScalingAgent, SafeSACActAgent,
+                       SafeSACTrainAgent, SeedingAgent, StatsLoggingAgent,
+                       TensorboardAgent, TensorFlowAgent)
 from RL.common.atari_wrappers import wrap_atari
+from RL.common.wrappers import LinearFrameStackWrapper  # noqa: F401
 from RL.common.utils import need_conv_net
 from RL.contexts import SACContext
 
@@ -20,6 +21,7 @@ def make(id):
     env = gym.make(id)  # type: gym.Env
     if need_conv_net(env.observation_space):
         env = wrap_atari(env, episode_life=c.atari_episode_life, clip_rewards=c.atari_clip_rewards, framestack_k=c.atari_framestack_k, frameskip_k=c.atari_frameskip_k, noop_max=c.atari_noop_max)
+    # env = LinearFrameStackWrapper(env, k=4)
     return env
 
 
@@ -53,9 +55,12 @@ for env_id_no in range(c.num_envs):
     keys = list(filter(lambda k: k.startswith('Env-' + str(env_id_no)), RL.stats.stats_dict.keys()))
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
+r.register_agent(MatplotlibPlotAgent(c, 'RPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Reward'))], ['b-'], xlabel='Episode ID', ylabel='Reward', legend='RPE', auto_save=True))
+
 # algo specific stats and graphs:
 misc_keys = ['ValueFn Loss', "Safety ValueFn Loss", 'Critic Loss', "Safety Critic Loss", 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Actor Critic Safety Q", "Average Action LogStd", "Average Action LogPi"]
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
+r.register_agent(MatplotlibPlotAgent(c, 'CPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Cost'))], ['b-'], xlabel='Episode ID', ylabel='Cost', legend='CPE', auto_save=True))
 
 r.run()
