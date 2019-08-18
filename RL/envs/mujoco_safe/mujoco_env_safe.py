@@ -4,6 +4,8 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
+from RL.envs.mujoco.point_env import PointEnv
+
 from rllab import spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.base import Step
@@ -44,6 +46,7 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         self._target_dist = target_dist
         self._abs_lim = abs_lim
         self._xlim = xlim
+        print('xlim is', xlim, '. d is', target_dist)
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
@@ -138,19 +141,21 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
         return self.get_current_obs()
 
     def step(self, action):
-        _, reward, done, info = self.wrapped_env.step(action)
+        _, inner_reward, done, info = self.wrapped_env.step(action)
         next_obs = self.get_current_obs()
 
         if self._circle_mode:
             pos = self.wrapped_env.get_body_com("torso")
-            # vel = self.wrapped_env.get_body_comvel("torso")
+            vel = self.wrapped_env.get_body_comvel("torso")
             # dt = self.wrapped_env.model.opt.timestep
-            # x, y = pos[0], pos[1]
-            x = pos[0]
-            # dx, dy = vel[0], vel[1]
-            # reward = -y * dx + x * dy
-            # reward /= (1 + np.abs(np.sqrt(x ** 2 + y ** 2) - self._target_dist))
-            # let reward come from point env.
+            x, y = pos[0], pos[1]
+            dx, dy = vel[0], vel[1]
+            reward = -y * dx + x * dy
+            reward /= (1 + np.abs(np.sqrt(x ** 2 + y ** 2) - self._target_dist))
+            # let reward come from point env for point case
+            if self.__class__.MODEL_CLASS == PointEnv:
+                print('using inner reward for point case')
+                reward = inner_reward
             if self._abs_lim:
                 safety_reward = -float(np.abs(x) >= self._xlim)
             else:

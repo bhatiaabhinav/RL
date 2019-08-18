@@ -7,3 +7,6 @@ import gym
 class SafeAntEnv(SafeMujocoEnv, Serializable, gym.Env):
 
     MODEL_CLASS = AntEnv
+
+    def render(self, mode='human'):
+        super().render(mode=mode)
