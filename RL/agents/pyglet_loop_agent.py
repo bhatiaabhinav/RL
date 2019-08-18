@@ -14,6 +14,11 @@ class PygletLoopAgent(RL.Agent):
             for window in pyglet.app.windows:
                 window.switch_to()
                 window.dispatch_events()
+                if hasattr(window, 'needs_draw'):
+                    if getattr(window, 'needs_draw'):
+                        setattr(window, 'needs_draw', False)
+                    else:
+                        continue
                 window.dispatch_event('on_draw')
                 window.flip()
 

@@ -22,6 +22,7 @@ class ImagePygletWingow(pyglet.window.Window):
     def __init__(self, width=None, height=None, caption=None, resizable=True, style=None, fullscreen=False, visible=True, vsync=True, display=None, screen=None, config=None, context=None, mode=None):
         super().__init__(width=width, height=height, caption=caption, resizable=resizable, style=style, fullscreen=fullscreen, visible=visible, vsync=vsync, display=display, screen=screen, config=config, context=context, mode=mode)
         self.image = None
+        self.needs_draw = True
         if height is None or width is None:
             self.auto_resize = True
 
@@ -32,6 +33,7 @@ class ImagePygletWingow(pyglet.window.Window):
     def set_image(self, arr, dispatch_events=False):
         assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
         self.image = pyglet.image.ImageData(arr.shape[1], arr.shape[0], 'RGB', arr.tobytes(), pitch=arr.shape[1] * -3)
+        self.needs_draw = True
         if self.auto_resize:
             self.set_size(arr.shape[1], arr.shape[0])
             self.auto_resize = False
@@ -39,8 +41,10 @@ class ImagePygletWingow(pyglet.window.Window):
             # self.clear()
             self.switch_to()
             self.dispatch_events()
-            self.dispatch_event('on_draw')
-            self.flip()
+            if self.needs_draw:
+                self.needs_draw = False
+                self.dispatch_event('on_draw')
+                self.flip()
 
     def imshow(self, arr):
         self.set_image(arr, True)

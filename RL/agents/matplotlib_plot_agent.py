@@ -16,7 +16,7 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
     def __init__(self, context: RL.Context, name: str, list_data: List[Tuple[List[float], List[float]]], line_fmts: List[str], episode_interval=1, auto_dispatch_on_render=None, title=None, xlabel=None, ylabel=None, legend=[], smoothing=None, style='seaborn', auto_save=False, save_path=None):
         super().__init__(context, name, episode_interval=episode_interval)
         with plt.style.context(style):
-            self.fig = Figure(dpi=48)
+            self.fig = Figure()
             self.axes = self.fig.gca()  # type: Axes
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
@@ -29,7 +29,7 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
         self.save_path = save_path
         self.auto_save = auto_save
         self.redraw_needed = True
-        self.auto_dispatch_on_render = auto_dispatch_on_render
+        self.auto_dispatch_on_render = self.context.auto_dispatch_on_render if auto_dispatch_on_render is None else auto_dispatch_on_render
 
     def start(self):
         self.lines = []
@@ -42,7 +42,6 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
             self.save()
 
     def update(self):
-        print('update called')
         for line, (xdata, ydata) in zip(self.lines, self.list_data):
             ydata_smooth = moving_average(ydata, self.smoothing)
             line.set_data(xdata, ydata_smooth)
@@ -57,7 +56,6 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
             self.save()
 
     def save(self):
-        print('save called')
         path = self.save_path
         if path is None:
             path = os.path.join(self.context.logdir, self.name, 'plot.png')
@@ -67,10 +65,15 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
         self.fig.savefig(path)
 
     def render(self):
+        '''called every frame'''
         if self.redraw_needed:
+            self.redraw_needed = False
             self.canvas.draw()
             width, height = self.fig.get_size_inches() * self.fig.get_dpi()
-            self.image = np.fromstring(self.canvas.tostring_rgb(), dtype='uint8').reshape(
-                int(height), int(width), 3)
-            self.redraw_needed = False
-        self.window.set_image(self.image, self.auto_dispatch_on_render)
+            self.image = np.fromstring(self.canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
+            self.window.set_image(self.image, self.auto_dispatch_on_render)
+
+    def close(self):
+        if self.auto_save:
+            self.save()
+        super().close()
