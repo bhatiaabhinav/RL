@@ -10,14 +10,14 @@ class SafeSACModel(SACModel):
             c = self.context.safe_sac_penalty_max_grad  # max gradient
             b = self.context.beta
             x = violation
-            min_x = -b * np.log(b * c)  # at this point, grad of exp_penalty is c.
-            exp_penalty = -tf.exp(-tf.maximum(x, min_x) / b)
             if c:
+                min_x = -b * np.log(b * c)  # at this point, grad of exp_penalty is c.
+                exp_penalty = -tf.exp(-tf.maximum(x, min_x) / b)
                 linear_penalty = c * x + b * c * (np.log(b * c) - 1)  # expression cx + const to make this function cont from where exp_penalty left off.
                 step_fn = (1 + tf.sign(x - min_x)) / 2
                 penalty = (1 - step_fn) * linear_penalty + step_fn * exp_penalty
             else:
-                penalty = exp_penalty
+                penalty = -tf.exp(-x / b)
             log_feasibility = penalty
             objective = sum([actor_loss_coeffs[i] * actor_critics[i] for i in range(self.num_critics - 1)]) - actor_loss_alpha * actor_logpis + actor_loss_alpha * actor_loss_coeffs[-1] * log_feasibility
             loss = -objective
