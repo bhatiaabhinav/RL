@@ -159,7 +159,7 @@ class GatherEnv(Env, Serializable):
                        'radians')
     def __init__(
             self,
-            n_apples=2,
+            n_apples=8,
             n_bombs=8,
             apple_reward=10,
             bomb_cost=1,
@@ -169,6 +169,7 @@ class GatherEnv(Env, Serializable):
             n_bins=10,
             sensor_range=6.,
             sensor_span=math.pi,
+            T=500,
             *args, **kwargs
     ):
         self.n_apples = n_apples
@@ -183,6 +184,7 @@ class GatherEnv(Env, Serializable):
         self.sensor_span = sensor_span
         self.objects = []
         self.time = 0
+        self.T = T
         super(GatherEnv, self).__init__(*args, **kwargs)
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
@@ -285,11 +287,11 @@ class GatherEnv(Env, Serializable):
                 if typ == APPLE:
                     reward = reward + self.apple_reward
                     info['Safety_reward'] = info['Safety_reward'] - 0
-                    info['apples'] = 1
+                    info['apples'] += 1
                 else:
                     reward = reward - self.bomb_cost
-                    info['Safety_reward'] = info['Safety_reward'] - 1
-                    info['bombs'] = 1
+                    info['Safety_reward'] = info['Safety_reward'] - self.bomb_cost
+                    info['bombs'] += 1
             else:
                 new_objs.append(obj)
         self.objects = new_objs
@@ -347,7 +349,7 @@ class GatherEnv(Env, Serializable):
         # return sensor data along with data about itself
         self_obs = self.inner_env.get_current_obs()
         apple_readings, bomb_readings = self.get_readings()
-        return np.concatenate([self_obs, apple_readings, bomb_readings, [1 - self.time / 15]])
+        return np.concatenate([self_obs, apple_readings, bomb_readings, [self.time / self.T])
 
     def get_viewer(self):
         if self.inner_env.viewer is None:

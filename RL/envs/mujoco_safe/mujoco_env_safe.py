@@ -27,7 +27,7 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
     MODEL_CLASS = None
 
     def __init__(self, nonlinear_reward=False,
-                 max_path_length_range=None,
+                 max_path_length_range=[49, 65],
                  random_start_range=None,
                  show_limit=True,
                  lim_size=5,
@@ -124,6 +124,7 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
             self.wrapped_env.model.data.qpos.flatten(),
             self.wrapped_env.model.data.qvel.flat,
             self.wrapped_env.get_body_com("torso").flat,
+            [self._step / np.max(self._max_path_length_range)]
         ])
 
     def reset(self, init_state=None):
@@ -154,7 +155,7 @@ class SafeMujocoEnv(ProxyEnv, Serializable):
             reward /= (1 + np.abs(np.sqrt(x ** 2 + y ** 2) - self._target_dist))
             # let reward come from point env for point case
             if self.__class__.MODEL_CLASS == PointEnv:
-                print('using inner reward for point case')
+                # print('using inner reward for point case')
                 reward = inner_reward
             if self._abs_lim:
                 safety_reward = -float(np.abs(x) >= self._xlim)

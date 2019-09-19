@@ -1,5 +1,5 @@
-from sandbox.cpo.envs.mujoco.gather.gather_env import GatherEnv
-from sandbox.cpo.envs.mujoco.ant_env import AntEnv
+from RL.envs.mujoco.gather.gather_env import GatherEnv
+from RL.envs.mujoco.ant_env import AntEnv
 import gym
 
 
