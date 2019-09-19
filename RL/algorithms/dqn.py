@@ -5,9 +5,10 @@ from RL.agents import (BasicStatsRecordingAgent, DQNActAgent,  # noqa: F401
                        DQNSensitivityVisualizerAgent, DQNTrainAgent,
                        EnvRenderingAgent, ExperienceBufferAgent,
                        ForceExploitControlAgent, LinearAnnealingAgent,
-                       ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
-                       RandomPlayAgent, RewardScalingAgent, SeedingAgent,
-                       StatsLoggingAgent, TensorboardAgent, TensorFlowAgent)
+                       MatplotlibPlotAgent, ModelLoaderSaverAgent,
+                       ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
+                       RewardScalingAgent, SeedingAgent, StatsLoggingAgent,
+                       TensorboardAgent, TensorFlowAgent)
 from RL.common.atari_wrappers import (ClipRewardEnv, EpisodicLifeEnv,
                                       FireResetEnv, NoopResetEnv, wrap_atari)
 from RL.common.utils import need_conv_net
@@ -66,6 +67,8 @@ for env_id_no in range(c.num_envs):
     keys = list(filter(lambda k: k.startswith('Env-' + str(env_id_no)), RL.stats.stats_dict.keys()))
     r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
     r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
+r.register_agent(MatplotlibPlotAgent(c, 'RPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Reward'))], ['b-'], xlabel='Episode ID', ylabel='Reward', legend='RPE', auto_save=True, smoothing=c.matplotlib_smoothing))
+
 misc_keys = ['epsilon', 'Q_loss:DQNActAgent/main_brain/default/Q_loss', 'Q_mpe:DQNActAgent/main_brain/default/Q_mpe', 'mb_av_V:DQNActAgent/main_brain/default/mb_av_V', 'Q Updates']
 r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
