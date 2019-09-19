@@ -650,14 +650,21 @@ def tf_l2_norm(vars, exclusions=['output', 'bias'], name='l2_losses'):
         return loss
 
 
-def tf_training_step(loss, vars, optimizer, l2_reg, clip_gradients, name):
+def tf_training_step(loss, vars, optimizer, l2_reg, clip_gradients, name, clip_gradients_by='norm'):
     with tf.variable_scope(name):
         if l2_reg:
             loss = loss + l2_reg * tf_l2_norm(vars)
         grads = tf.gradients(loss, vars)
         if clip_gradients:
             clip_gradients = float(clip_gradients)
-            grads = [tf.clip_by_value(grad, -clip_gradients, clip_gradients) for grad in grads]
+            if clip_gradients_by == 'norm':
+                grads = [tf.clip_by_norm(grad, clip_gradients) for grad in grads]
+            elif clip_gradients_by == 'value':
+                grads = [tf.clip_by_value(grad, -clip_gradients, clip_gradients) for grad in grads]
+            elif clip_gradients_by == 'global_norm':
+                raise NotImplementedError("Clip by global norm not implemented yet")
+            else:
+                raise Exception("Unkown clip gradients mode " + str(clip_gradients_by))
         sgd_step = optimizer.apply_gradients(zip(grads, vars))
         return sgd_step
 
