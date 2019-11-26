@@ -49,8 +49,8 @@ class MatplotlibPlotAgent(BasePygletRenderingAgent):
         self.axes.autoscale()
         self.redraw_needed = True
 
-    def post_episode(self, env_id_nos):
-        super().post_episode(env_id_nos)
+    def post_episodes(self, env_id_nos):
+        super().post_episodes(env_id_nos)
         self.update()
         if self.auto_save:
             self.save()

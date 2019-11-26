@@ -6,7 +6,7 @@ class RandomPlayAgent(RL.Agent):
         super().__init__(context, name)
         self.play_for_steps = play_for_steps
 
-    def act(self):
+    def acts(self):
         if self.play_for_steps is not None and self.runner.num_steps >= self.play_for_steps:
             return None
         else:

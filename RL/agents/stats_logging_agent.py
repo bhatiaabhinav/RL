@@ -28,7 +28,7 @@ class StatsLoggingAgent(RL.Agent):
             if self._changes:
                 self.write_key_vals()
 
-    def post_episode(self, env_id_nos):
+    def post_episodes(self, env_id_nos):
         if self.poll_every_episode > 0 and np.any(self.runner.episode_ids[env_id_nos] % self.poll_every_episode == 0):
             self.read_key_vals()
             if self._changes:
@@ -48,7 +48,10 @@ class StatsLoggingAgent(RL.Agent):
                 else:
                     val = None
             old_val = self.friendly_key_vals.get(friendly_key)
-            if not val == old_val:
+            if hasattr(val, '__len__'):
+                if not np.array_equal(val, old_val):
+                    self._changes = True
+            elif not val == old_val:
                 self._changes = True
             self.friendly_key_vals[friendly_key] = val
 

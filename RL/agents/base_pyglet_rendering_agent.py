@@ -24,7 +24,7 @@ class BasePygletRenderingAgent(RL.Agent):
     def start(self):
         pass
 
-    def pre_episode(self, env_id_nos):
+    def pre_episodes(self, env_id_nos):
         if self.runner.episode_id % self.episode_interval == 0:
             self.create_pyglet_window()
             self.render()

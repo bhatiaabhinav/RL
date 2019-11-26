@@ -11,7 +11,7 @@ class DDPGActAgent(RL.Agent):
     def exploit_policy(self, model: DDPGModel, states):
         return model.actions(states)
 
-    def act(self):
+    def acts(self):
         exploit_env_ids = list(filter(lambda env_id_no: self.context.force_exploits[env_id_no], range(self.context.num_envs)))
         if len(exploit_env_ids) > 0:
             exploit_actions = self.exploit_policy(self.model, list(np.asarray(self.runner.obss)[exploit_env_ids]))

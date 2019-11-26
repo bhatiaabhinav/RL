@@ -1,5 +1,6 @@
 import RL
 import numpy as np
+import numbers
 
 
 class TensorboardAgent(RL.Agent):
@@ -11,6 +12,7 @@ class TensorboardAgent(RL.Agent):
         self.keys_prefix = keys_prefix
         self.log_every_episode = log_every_episode
         self.log_every_step = log_every_step
+        self.hist_keys = set()
         for i, (k, fk) in enumerate(zip(self.keys, self.friendly_keys)):
             if ':' in k:
                 fk = k.split(':')[0]  # type: str
@@ -19,17 +21,23 @@ class TensorboardAgent(RL.Agent):
                 fk = k  # type: str
             k = keys_prefix + k
             fk = fk.replace(' ', '_')
+            if k.endswith('_hist'):
+                self.hist_keys.add(k)
             self.keys[i] = k
             self.friendly_keys[i] = fk
 
     def start(self):
-        self.context.summaries.setup_scalar_summaries(self.friendly_keys)
+        for k, fk in zip(self.keys, self.friendly_keys):
+            if k in self.hist_keys:
+                self.context.summaries.setup_histogram_summaries([fk])
+            else:
+                self.context.summaries.setup_scalar_summaries([fk])
 
     def post_act(self):
         if self.log_every_step > 0 and np.any(self.runner.step_ids % self.log_every_step == 0):
             self.read_and_push_to_tb()
 
-    def post_episode(self, env_id_nos):
+    def post_episodes(self, env_id_nos):
         if self.log_every_episode > 0 and np.any(self.runner.episode_ids[env_id_nos] % self.log_every_episode == 0):
             self.read_and_push_to_tb()
 
@@ -55,8 +63,9 @@ class TensorboardAgent(RL.Agent):
                     val = val[-1]
                 else:
                     continue
-            try:
-                kvs[friendly_key] = float(val)
-            except Exception:
-                pass
+            if val is not None:
+                if isinstance(val, list) or isinstance(val, np.ndarray):
+                    kvs[friendly_key] = np.asarray(val).astype(np.float32)
+                elif isinstance(val, numbers.Number):
+                    kvs[friendly_key] = float(val)
         self.context.summaries.write_summaries(kvs, x)

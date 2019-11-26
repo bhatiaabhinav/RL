@@ -18,7 +18,7 @@ class EnvRenderingAgent(BasePygletRenderingAgent):
             else:
                 self.window.set_text_image(self.context.env.render(mode='ansi'), self.auto_dispatch_on_render)
         else:
-            self.window.render(mode=self.context.render_mode)
+            self.context.env.render(mode=self.context.render_mode)
 
     def create_pyglet_window(self):
         if self.context.render_mode == 'auto':

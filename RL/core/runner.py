@@ -22,6 +22,7 @@ class Runner:
         self.num_episode_stepss = np.array([0] * self.num_envs)
         self.num_episodess = np.array([0] * self.num_envs)
         self.prev_obss = [None] * self.num_envs
+        self.actions = [None for env in self.envs]
         self.obss = [None] * self.num_envs
         self.rewards = np.zeros(self.num_envs)
         self.dones = np.array([True] * self.num_envs)
@@ -105,13 +106,16 @@ class Runner:
     def enabled_agents(self):
         return list(filter(lambda agent: agent.enabled, self.agents))
 
-    def should_stop(self):
+    def should_stops(self):
         return np.min(self.num_stepss) >= self.num_steps_to_run or np.min(self.num_episodess) >= self.num_episodes_to_run
 
-    def run(self):
+    def should_stop(self):
+        return self.num_stepss[0] >= self.num_steps_to_run or self.num_episodess[0] >= self.num_episodes_to_run
+
+    def runs(self):
         [agent.start() for agent in self.enabled_agents()]
         need_reset_env_id_nos = np.asarray(list(range(self.num_envs)))
-        while not self.should_stop():
+        while not self.should_stops():
             # do the resets
             for env_id_no in need_reset_env_id_nos:
                 self.prev_obss[env_id_no] = self.obss[env_id_no]
@@ -122,11 +126,11 @@ class Runner:
                 self.num_episode_stepss[env_id_no] = 0
             # pre episode for envs which just got resetted
             if len(need_reset_env_id_nos) > 0:
-                [agent.pre_episode(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]
+                [agent.pre_episodes(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]
             # pre act
             [agent.pre_act() for agent in self.enabled_agents()]
             # act
-            actions_per_agent = [agent.act() for agent in self.enabled_agents()]
+            actions_per_agent = [agent.acts() for agent in self.enabled_agents()]
             actions_per_agent = list(filter(lambda x: x is not None, actions_per_agent))
             # step
             self.prev_obss = [obs for obs in self.obss]
@@ -145,7 +149,7 @@ class Runner:
             # post episode for envs which are done:
             need_reset_env_id_nos = np.asarray(list(filter(lambda i: self.dones[i], range(self.num_envs))))
             if len(need_reset_env_id_nos) > 0:
-                [agent.post_episode(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]
+                [agent.post_episodes(env_id_nos=need_reset_env_id_nos) for agent in self.enabled_agents()]
             # increment steps and episodes
             self.num_episode_stepss = self.num_episode_stepss + 1
             self.num_stepss = self.num_stepss + 1
@@ -181,6 +185,48 @@ class Runner:
         # c.log_stats(average_over=c.n_episodes)
         # [agent.close() for agent in self.agents]
         # [env.close() for env in self.envs]
+
+    def run(self):
+        [agent.start() for agent in self.enabled_agents()]
+        need_reset = True
+        while not self.should_stop():
+            # do the reset
+            if need_reset:
+                self.prev_obss[0] = self.obss[0]
+                self.obss[0] = self.envs[0].reset()
+                self.rewards[0] = 0
+                self.dones[0] = False
+                self.infos[0] = {}
+                self.num_episode_stepss[0] = 0
+                # pre episode
+                [agent.pre_episode() for agent in self.enabled_agents()]
+            # pre act
+            [agent.pre_act() for agent in self.enabled_agents()]
+            # act
+            actions_per_agent = [agent.act() for agent in self.enabled_agents()]
+            actions_per_agent = list(filter(lambda x: x is not None, actions_per_agent))
+            if len(actions_per_agent) == 0:
+                logger.error("No agent returned any action! The environment cannot be stepped")
+                raise RuntimeError("No agent returned any action! The environment cannot be stepped")
+            # step
+            self.prev_obss[0] = self.obss[0]
+            self.actions[0] = actions_per_agent[-1]
+            self.obss[0], self.rewards[0], self.dones[0], self.infos[0] = self.envs[0].step(self.actions[0])
+            # post act
+            [agent.post_act() for agent in self.enabled_agents()]
+            # post episode for envs which are done:
+            need_reset = self.dones[0]
+            if need_reset:
+                [agent.post_episode() for agent in self.enabled_agents()]
+            # increment steps and episodes
+            self.num_episode_stepss[0] = self.num_episode_stepss[0] + 1
+            self.num_stepss[0] = self.num_stepss[0] + 1
+            if need_reset:
+                self.num_episodess[0] = self.num_episodess[0] + 1
+        logger.log('-------------------Done--------------------')
+        [agent.close() for agent in self.agents]
+        [agent.post_close() for agent in self.agents]
+        [env.close() for env in self.envs]
 
     def get_agent(self, name):
         '''returns none if no agent found by this name'''

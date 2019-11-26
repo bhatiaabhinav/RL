@@ -3,6 +3,8 @@ from .force_exploit_control_agent import ForceExploitControlAgent  # noqa: F401
 from .reward_scaling_agent import RewardScalingAgent  # noqa: F401
 from .dqn_act_agent import DQNActAgent  # noqa: F401
 from .dqn_train_agent import DQNTrainAgent  # noqa: F401
+from .simple_dqn_act_agent import SimpleDQNActAgent  # noqa: F401
+from .simple_dqn_train_agent import SimpleDQNTrainAgent  # noqa: F401
 from .experience_buffer_agent import ExperienceBufferAgent  # noqa: F401
 from .human_agent import SlowHuman  # noqa: F401
 from .model_loader_saver_agent import ModelLoaderSaverAgent  # noqa: F401

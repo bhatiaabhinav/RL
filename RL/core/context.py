@@ -86,6 +86,7 @@ class Context:
     safe_sac_penalty_max_grad = 50
     load_model_dir = None
     load_every = None  # load the model every this many episodes
+    frameskip = 1
     atari_framestack_k = 4
     atari_frameskip_k = 4
     atari_noop_max = 30
@@ -134,6 +135,11 @@ class Context:
             RL.logger.warn("No experiment_name argument was provided. It is highly recommened that you name your experiments")
 
     @property
+    def force_exploit(self):
+        '''flag based on `minimum_experience`, `eval_mode` and `exploit_every`'''
+        return self.force_exploits[0]
+
+    @property
     def env(self):
         return self.envs[0]
 
@@ -141,6 +147,9 @@ class Context:
         self.envs.clear()
         self.envs.extend(envs)
         self.force_exploits = [False] * self.num_envs
+
+    def set_env(self, env: gym.Env):
+        self.set_envs([env])
 
     @property
     def num_envs(self):

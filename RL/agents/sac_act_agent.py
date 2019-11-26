@@ -14,7 +14,7 @@ class SACActAgent(RL.Agent):
         noise = model.sample_actions_noise(len(states), sigma=sigma)
         return model.actions(states, noise)
 
-    def act(self):
+    def acts(self):
         if not self.context.eval_mode and self.runner.num_steps < self.context.minimum_experience:
             return None  # let the random player act
         else:

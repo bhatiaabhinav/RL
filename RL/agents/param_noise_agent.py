@@ -19,7 +19,7 @@ class ParamNoiseAgent(RL.Agent):
         if self.adaptation_factor is None:
             self.adaptation_factor = self.context.param_noise_adaptation_factor
 
-    def act(self):
+    def acts(self):
         if self.runner.num_steps >= self.context.minimum_experience:
             explore_env_ids = list(filter(lambda env_id_no: not self.context.force_exploits[env_id_no], range(self.context.num_envs)))
             if len(explore_env_ids) > 0:
@@ -37,12 +37,12 @@ class ParamNoiseAgent(RL.Agent):
         self.all_copier.copy(tau=1)
         self.perturb_copier.copy(tau=1, noise=self.perturb_copier.generate_normal_noise(self.sigma))
 
-    def pre_episode(self, env_id_nos):
+    def pre_episodes(self, env_id_nos):
         if 0 in env_id_nos and not self.context.force_exploits[0]:
             self.copy()
             self.episode_states.clear()
 
-    def post_episode(self, env_id_nos):
+    def post_episodes(self, env_id_nos):
         if 0 in env_id_nos and not self.context.force_exploits[0]:
             sampled_state_ids = np.random.choice(len(self.episode_states), self.context.minibatch_size)
             sampled_states = np.asarray(self.episode_states)[sampled_state_ids]

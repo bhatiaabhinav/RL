@@ -4,10 +4,10 @@ import time
 
 
 class BasicStatsRecordingAgent(RL.Agent):
-    def __init__(self, context: RL.Context, name, frameskip=1, record_returns=None, record_unscaled_rewards=None, reward_scaling=None):
+    def __init__(self, context: RL.Context, name, frameskip=None, record_returns=None, record_unscaled_rewards=None, reward_scaling=None):
         super().__init__(context, name)
         keys = ['Env-{0} Episode ID', 'Env-{0} Episode Type', 'Env-{0} Episode Length', 'Env-{0} Total Steps', 'Env-{0} Total Frames', 'Env-{0} Total Episodes', 'Env-{0} Episode Timestamp', 'Env-{0} Episode Reward', 'Env-{0} Exploit Episode Reward', 'Env-{0} Av100 Episode Reward', 'Env-{0} Av100 Exploit Episode Reward', 'Env-{0} Episode Cost', 'Env-{0} Episode FPS']
-        self.frameskip = frameskip
+        self.frameskip = context.frameskip if frameskip is None else frameskip
         self.record_returns = context.record_returns if record_returns is None else record_returns
         self.record_unscaled_rewards = context.record_unscaled_rewards if record_unscaled_rewards is None else record_unscaled_rewards
         self.reward_scaling = context.reward_scaling if reward_scaling is None else reward_scaling
@@ -62,12 +62,12 @@ class BasicStatsRecordingAgent(RL.Agent):
             RL.stats.record('Env-{0} Av100 Exploit Episode Reward'.format(env_id_no), av_rpe_exploit)
             RL.stats.record_append('Env-{0} Episode FPS'.format(env_id_no), self.episode_fps)
 
-    def pre_episode(self, env_id_nos):
+    def pre_episodes(self, env_id_nos):
         self.episode_rewards[env_id_nos] = 0
         self.episode_safety_rewards[env_id_nos] = 0
         self.episode_steps = 0
         self.ep_start_time = time.time()
 
-    def post_episode(self, env_id_nos):
+    def post_episodes(self, env_id_nos):
         self.episode_fps = self.episode_steps / (time.time() - self.ep_start_time)
         self.record(env_id_nos)

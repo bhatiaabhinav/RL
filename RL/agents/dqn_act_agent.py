@@ -28,7 +28,7 @@ class DQNActAgent(RL.Agent):
         epsilon = [self.context.exploit_epsilon if m else self.context.epsilon for m in exploit_modes]
         return self.epsilon_greedy_policy(model, states, np.asarray(epsilon))
 
-    def act(self):
+    def acts(self):
         if not self.context.eval_mode and self.runner.num_steps < self.context.minimum_experience:
             return None  # let the random player act
         else:

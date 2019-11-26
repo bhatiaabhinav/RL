@@ -38,11 +38,11 @@ class ImagePygletWingow(pyglet.window.Window):
             self.set_size(arr.shape[1], arr.shape[0])
             self.auto_resize = False
         if dispatch_events:
-            # self.clear()
             self.switch_to()
             self.dispatch_events()
             if self.needs_draw:
                 self.needs_draw = False
+                # self.clear()
                 self.dispatch_event('on_draw')
                 self.flip()
 

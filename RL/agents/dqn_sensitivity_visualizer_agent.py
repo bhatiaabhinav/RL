@@ -1,5 +1,6 @@
 import RL
 from RL.models.dqn_model import Brain
+import RL.models.simple_dqn_model as simple_dqn_model
 from .base_pyglet_rendering_agent import BasePygletRenderingAgent
 import numpy as np
 from PIL import Image
@@ -15,7 +16,12 @@ class DQNSensitivityVisualizerAgent(BasePygletRenderingAgent):
 
     def render(self):
         context = self.context
-        frame = self.model.get_Q_input_sensitivity([self.runner.obs])[self.head_id][0]
+        if isinstance(self.model, Brain):
+            frame = self.model.get_Q_input_sensitivity([self.runner.obs])[self.head_id][0]
+        elif isinstance(self.model, simple_dqn_model.Brain):
+            self.model = self.model  # simple_dqn_model.Brain
+            frame = self.model.Q_input_sensitivity([self.runner.obs])[0]
+        frame = np.transpose(frame, [1, 2, 0])
         channels = frame.shape[2]
         frame = np.dot(frame.astype('float32'), np.ones([channels]) / channels)
         frame = np.expand_dims(frame, 2)
