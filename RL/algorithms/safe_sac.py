@@ -1,16 +1,15 @@
 import gym
-import safety_gym
+import safety_gym  # noqa
 
 import RL
 import RL.envs
-from RL.agents import BasicStatsRecordingAgent  # noqa: F401
-from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
+from RL.agents import BasicStatsRecordingAgent
+from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,  # noqa
                        ForceExploitControlAgent, MatplotlibPlotAgent,
                        ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
                        RandomPlayAgent, RewardScalingAgent, SafeSACActAgent,
                        SafeSACTrainAgent, SeedingAgent, StatsLoggingAgent,
                        TensorboardAgent, TensorFlowAgent)
-from RL.common.wrappers import LinearFrameStackWrapper  # noqa: F401
 from RL.common.wrappers import wrap_standard
 from RL.contexts import SACContext
 
@@ -58,13 +57,13 @@ r.run()
 
 
 """
-python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac_ln_vs_cpo --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=256 --hidden_layers=[64,32] --gamma=0.995 --safety_gamma=0.995 --layer_norm=True --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=2 --record_returns=True
+python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac_ln_vs_cpo --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=256 --hidden_layers=[64,32] --gamma=0.995 --safety_gamma=0.995 --layer_norm=True --safety_threshold=-5 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=1 --safety_reward_scaling=2 --record_returns=True
 """
 
 """
-python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=0.9999 --layer_norm=False --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=2 --record_returns=False
+python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=1 --layer_norm=False --safety_threshold=-5 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=1 --safety_reward_scaling=2 --record_returns=False
 """
 
 """
-python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=safesac_ln --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=0.9999 --layer_norm=True --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=100 --safety_reward_scaling=0.4 --record_returns=False
+python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=safesac_ln --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=0.9999 --layer_norm=True --safety_threshold=-25 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=20 --safety_reward_scaling=0.4 --record_returns=False
 """
