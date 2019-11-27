@@ -21,6 +21,7 @@ class Context:
     gamma = 0.99
     ignore_done_on_timelimit = True  # For time limit environments, whether to ignore done signal during bellman update
     record_returns = False  # set this to true to make basic_stats_recorder record discounted sum of rewards per episode
+    safety_reward_scaling = 1
     reward_scaling = 1  # scale environment rewards by this factor
     record_unscaled_rewards = True  # To make basic_stats_recorder compensate for reward scaling while recording stats.
     eval_mode = False  # Set this to true to disable learning and only exploit a trained model.
@@ -37,7 +38,7 @@ class Context:
     num_envs_to_make = 1
     experience_buffer_length = int(1e6)
     experience_buffer_megabytes = None
-    minimum_experience = 50000  # in frames, before learning can begin
+    minimum_experience = 10000  # in frames, before learning can begin
     epsilon = 1  # for epislon-greedy action selection during exploration
     final_epsilon = 0.01  # anneal epsilon for epislon-greedy action selection during exploration to this value
     exploit_epsilon = 0.001  # for epislon-greedy action selection during exploitation

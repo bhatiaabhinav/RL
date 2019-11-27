@@ -9,4 +9,4 @@ class RewardScalingAgent(RL.Agent):
     def post_act(self):
         self.runner.rewards *= self.reward_scaling
         for info in self.runner.infos:
-            info['Safety_reward'] = info.get('Safety_reward', 0) * self.reward_scaling
+            info['Safety_reward'] = info.get('Safety_reward', 0) * self.context.safety_reward_scaling
