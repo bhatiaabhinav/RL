@@ -4,6 +4,8 @@ import numpy as np
 from typing import List
 import RL
 
+ids = 0
+
 
 class Experience:
     def __init__(self, state, action, reward, done, info, next_state):
@@ -13,6 +15,7 @@ class Experience:
         self.done = done
         self.info = info
         self.next_state = next_state
+        self.id = 0
 
     def __sizeof__(self):
         return sys.getsizeof(self.state) + sys.getsizeof(self.action) + \
@@ -51,9 +54,16 @@ class ExperienceBuffer:
         self.buffer[self.next_index] = exp
         self.next_index = (self.next_index + 1) % self.buffer_length
         self.count = min(self.count + 1, self.buffer_length)
+        global ids
+        self.id = ids
+        ids += 1
 
     def random_experiences(self, count):
         indices = np.random.randint(0, self.count, size=count)
+        # if self.count < self.buffer_length:
+        #     priors = np.asarray([1 / ((self.count - i) ** 0.5) for i in range(self.count)])
+        #     priors = priors / np.sum(priors)
+        #     indices = np.random.choice(self.count, size=count, p=priors)
         for i in indices:
             yield self.buffer[i]
 

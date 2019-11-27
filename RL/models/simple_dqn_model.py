@@ -42,13 +42,13 @@ class Brain:
             # losses:
             self._desired_Q_placeholder = self._tf_desired_Q_placeholder("desired_Q")
             self._Q_loss, self._Q_mpe = self._tf_Q_loss(self._Q, self._desired_Q_placeholder, "Q_loss")
-            self._attention_entropy = tf.reduce_mean(tf.reduce_sum(- self._attention * tf.log(self._attention), -1))
+            # self._attention_entropy = tf.reduce_mean(tf.reduce_sum(- self._attention * tf.log(self._attention), -1))
             # optimize:
             self._optimizer = tf.train.AdamOptimizer(self.context.learning_rate, epsilon=self.context.adam_epsilon)
             self._trainable_vars = self.get_trainable_vars("states_embeddings")
             self._trainable_vars += self.get_trainable_vars("Q")
-            self._training_step = tf_training_step(self._Q_loss - 0.01 * self._attention_entropy, self._trainable_vars, self._optimizer,
-                                                   self.context.l2_reg, self.context.clip_gradients, "training_step")
+            # self._training_step = tf_training_step(self._Q_loss - 0.01 * self._attention_entropy, self._trainable_vars, self._optimizer, self.context.l2_reg, self.context.clip_gradients, "training_step")
+            self._training_step = tf_training_step(self._Q_loss, self._trainable_vars, self._optimizer, self.context.l2_reg, self.context.clip_gradients, "training_step")
 
     def _tf_states_placeholder(self, name):
         with tf.variable_scope(name):
@@ -161,7 +161,11 @@ class Brain:
 
     def train(self, mb_states, mb_desiredQ):
         self.Q_updates += 1
-        _, Q_loss, Q_mpe, V, att, att_ent = self.context.session.run([self._training_step, self._Q_loss, self._Q_mpe, self._V, self._attention, self._attention_entropy], feed_dict={
+        # _, Q_loss, Q_mpe, V, att, att_ent = self.context.session.run([self._training_step, self._Q_loss, self._Q_mpe, self._V, self._attention, self._attention_entropy], feed_dict={
+        #     self._states_placeholder: mb_states,
+        #     self._desired_Q_placeholder: mb_desiredQ
+        # })
+        _, Q_loss, Q_mpe, V = self.context.session.run([self._training_step, self._Q_loss, self._Q_mpe, self._V], feed_dict={
             self._states_placeholder: mb_states,
             self._desired_Q_placeholder: mb_desiredQ
         })
@@ -170,6 +174,6 @@ class Brain:
             RL.stats.record_append("{0}/Q_loss".format(self.name), Q_loss)
             RL.stats.record_append("{0}/Q_mpe".format(self.name), Q_mpe)
             RL.stats.record_append("Q Updates", self.Q_updates)
-            RL.stats.record("att_hist", np.argmax(att, -1))
-            RL.stats.record_append("att_ent", att_ent)
+            # RL.stats.record("att_hist", np.argmax(att, -1))
+            # RL.stats.record_append("att_ent", att_ent)
         return Q_loss, Q_mpe

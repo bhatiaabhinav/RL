@@ -9,43 +9,12 @@ from RL.agents import (BasicStatsRecordingAgent, SimpleDQNActAgent,  # noqa: F40
                        ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
                        RewardScalingAgent, SeedingAgent, StatsLoggingAgent,
                        TensorboardAgent, TensorFlowAgent)
-from RL.common.atari_wrappers import (ClipRewardEnv, EpisodicLifeEnv,
-                                      FireResetEnv, NoopResetEnv)
-from RL.common.utils import need_conv_net
-from RL.common.wrappers import FrameSkipWrapper
-from gym.wrappers import AtariPreprocessing, FrameStack
+from RL.common.wrappers import wrap_standard
+
 from RL.contexts import DQNContext
 
 c = DQNContext()
-
-
-def make(id):
-    env = gym.make(id)  # type: gym.Env
-    if need_conv_net(env.observation_space):
-        env = FireResetEnv(env)
-        env = AtariPreprocessing(env, c.atari_noop_max, c.atari_frameskip_k, terminal_on_life_loss=c.atari_episode_life)
-        env = FrameStack(env, c.atari_framestack_k)
-        c.frameskip = c.atari_frameskip_k
-        # print(env)
-    elif '-ram' in id:  # for playing atari from ram
-        if c.atari_episode_life:
-            env = EpisodicLifeEnv(env)
-        env = NoopResetEnv(env, noop_max=c.atari_noop_max)
-        if 'FIRE' in env.unwrapped.get_action_meanings():
-            env = FireResetEnv(env)
-            RL.logger.log("Fire reset being used")
-        env = FrameSkipWrapper(env, skip=c.atari_frameskip_k)
-        # if c.atari_clip_rewards:
-        #     env = ClipRewardEnv(env)
-        c.frameskip = c.atari_frameskip_k
-        print(env)
-    else:
-        if c.frameskip > 1:
-            env = FrameSkipWrapper(env, skip=c.frameskip)
-    return env
-
-
-c.set_env(make(c.env_id))
+c.set_env(wrap_standard(gym.make(c.env_id), c))
 
 r = RL.Runner(c, "runner")
 
@@ -84,3 +53,10 @@ r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys + ['att_
 # r.register_agent(MatplotlibPlotAgent(c, 'RPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Reward'))], ['b-'], xlabel='Episode ID', ylabel='Reward', legend='RPE', auto_save=True, smoothing=c.matplotlib_smoothing))
 
 r.run()
+
+
+"""
+To run this algorithm in bash: do:
+
+python -m RL.algorithms.simple_dqn --env_id=BreakoutNoFrameskip-v4 --experiment_name=SimpleDQN --double_dqn=False --dueling_dqn=False --experience_buffer_length=100000 --atari_clip_rewards=False --atari_episode_life=True --learning_rate=1e-4 --convs="[(16,8,4),(32,4,2),(32,3,1)]" --hidden_layers="[256]" --normalize_observations=False --minimum_experience=10000 --target_network_update_every=2000
+"""

@@ -1,4 +1,5 @@
 import gym
+import safety_gym
 
 import RL
 import RL.envs
@@ -9,23 +10,12 @@ from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
                        RandomPlayAgent, RewardScalingAgent, SafeSACActAgent,
                        SafeSACTrainAgent, SeedingAgent, StatsLoggingAgent,
                        TensorboardAgent, TensorFlowAgent)
-from RL.common.atari_wrappers import wrap_atari
 from RL.common.wrappers import LinearFrameStackWrapper  # noqa: F401
-from RL.common.utils import need_conv_net
+from RL.common.wrappers import wrap_standard
 from RL.contexts import SACContext
 
 c = SACContext()
-
-
-def make(id):
-    env = gym.make(id)  # type: gym.Env
-    if need_conv_net(env.observation_space):
-        env = wrap_atari(env, episode_life=c.atari_episode_life, clip_rewards=c.atari_clip_rewards, framestack_k=c.atari_framestack_k, frameskip_k=c.atari_frameskip_k, noop_max=c.atari_noop_max)
-    # env = LinearFrameStackWrapper(env, k=4)
-    return env
-
-
-c.set_envs([make(c.env_id) for i in range(c.num_envs_to_make)])
+c.set_env(wrap_standard(gym.make(c.env_id), c))
 
 r = RL.Runner(c, "runner")
 
@@ -49,18 +39,32 @@ if c.render:
     r.register_agent(EnvRenderingAgent(c, "RenderingAgent"))
 r.register_agent(PygletLoopAgent(c, "PygletLoopAgent"))
 
-# stats and graphs:
-r.register_agent(BasicStatsRecordingAgent(c, "StatsRecordingAgent", frameskip=c.atari_frameskip_k if need_conv_net(c.envs[0].observation_space) else 1))
-for env_id_no in range(c.num_envs):
-    keys = list(filter(lambda k: k.startswith('Env-' + str(env_id_no)), RL.stats.stats_dict.keys()))
-    r.register_agent(StatsLoggingAgent(c, "Env-{0}-StatsLoggingAgent".format(env_id_no), keys))
-    r.register_agent(TensorboardAgent(c, "Env-{0}-TensorboardAgent".format(env_id_no), keys, 'Env-{0} Total Frames'.format(env_id_no)))
-r.register_agent(MatplotlibPlotAgent(c, 'RPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Reward'))], ['b-'], xlabel='Episode ID', ylabel='Reward', legend='RPE', auto_save=True, smoothing=c.matplotlib_smoothing))
+# stats record:
+r.register_agent(BasicStatsRecordingAgent(c, "StatsRecordingAgent"))
 
-# algo specific stats and graphs:
+# stats log:
+keys = list(filter(lambda k: k.startswith('Env-0'), RL.stats.stats_dict.keys()))
 misc_keys = ['ValueFn Loss', "Safety ValueFn Loss", 'Critic Loss', "Safety Critic Loss", 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Actor Critic Safety Q", "Average Action LogStd", "Average Action LogPi"]
-r.register_agent(StatsLoggingAgent(c, 'Misc-StatsLoggingAgent', misc_keys))
+r.register_agent(StatsLoggingAgent(c, "Env-0-StatsLoggingAgent", keys + misc_keys, poll_every_episode=1))
+
+# stats plot:
+r.register_agent(TensorboardAgent(c, "Env-0-TensorboardAgent", keys, 'Env-0 Total Frames'))
 r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 Total Frames', log_every_episode=-1, log_every_step=100))
-r.register_agent(MatplotlibPlotAgent(c, 'CPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Cost'))], ['b-'], xlabel='Episode ID', ylabel='Cost', legend='CPE', auto_save=True, smoothing=c.matplotlib_smoothing))
+# r.register_agent(MatplotlibPlotAgent(c, 'RPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Reward'))], ['b-'], xlabel='Episode ID', ylabel='Reward', legend='RPE', auto_save=True, smoothing=c.matplotlib_smoothing))
+# r.register_agent(MatplotlibPlotAgent(c, 'CPE', [(RL.stats.get('Env-0 Episode ID'), RL.stats.get('Env-0 Episode Cost'))], ['b-'], xlabel='Episode ID', ylabel='Cost', legend='CPE', auto_save=True, smoothing=c.matplotlib_smoothing))
+
 
 r.run()
+
+
+"""
+python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac_ln_vs_cpo --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=256 --hidden_layers=[64,32] --gamma=0.995 --safety_gamma=0.995 --layer_norm=True --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=2 --record_returns=True
+"""
+
+"""
+python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=0.9999 --layer_norm=False --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=2 --record_returns=False
+"""
+
+"""
+python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=safesac_ln --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --safety_gamma=0.9999 --layer_norm=True --safety_threshold=-10 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=100 --safety_reward_scaling=0.4 --record_returns=False
+"""

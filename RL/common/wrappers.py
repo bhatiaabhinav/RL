@@ -2,10 +2,12 @@ from collections import deque
 
 import gym
 import numpy as np
-from gym.wrappers import TimeLimit
+from gym.wrappers import AtariPreprocessing, FrameStack, TimeLimit
 
 import RL
-from RL.common.utils import ImagePygletWingow
+from RL.common.atari_wrappers import (ClipRewardEnv, EpisodicLifeEnv,
+                                      FireResetEnv, NoopResetEnv)
+from RL.common.utils import ImagePygletWingow, need_conv_net
 
 
 class DummyWrapper(gym.Wrapper):
@@ -176,3 +178,42 @@ class RenderWrapper(gym.Wrapper):
     def close(self):
         if self.window:
             self.window.close()
+
+
+class SafetyRewardInfoWrapper(gym.Wrapper):
+    def __init__(self, env, safety_reward_extractor_fn):
+        super().__init__(env)
+        self.safety_reward_extractor_fn = safety_reward_extractor_fn
+
+    def step(self, action):
+        o, r, d, i = self.env.step(action)
+        i['Safety_reward'] = i.get('Safety_reward', 0) + self.safety_reward_extractor_fn(o, r, d, i)
+        return o, r, d, i
+
+
+def wrap_standard(env: gym.Env, c: RL.Context):
+    if c.env_id.startswith('Safexp-'):
+        env = SafetyRewardInfoWrapper(env, lambda o, r, d, i: -i['cost'])
+    if need_conv_net(env.observation_space):
+        env = FireResetEnv(env)
+        env = AtariPreprocessing(env, c.atari_noop_max, c.atari_frameskip_k, terminal_on_life_loss=c.atari_episode_life)
+        env = FrameStack(env, c.atari_framestack_k)
+        if c.atari_clip_rewards:
+            env = ClipRewardEnv(env)
+        c.frameskip = c.atari_frameskip_k
+    elif '-ram' in c.env_id:  # for playing atari from ram
+        if c.atari_episode_life:
+            env = EpisodicLifeEnv(env)
+        env = NoopResetEnv(env, noop_max=c.atari_noop_max)
+        if 'FIRE' in env.unwrapped.get_action_meanings():
+            env = FireResetEnv(env)
+            RL.logger.log("Fire reset being used")
+        env = FrameSkipWrapper(env, skip=c.atari_frameskip_k)
+        if c.atari_clip_rewards:
+            env = ClipRewardEnv(env)
+        c.frameskip = c.atari_frameskip_k
+    else:
+        if c.frameskip > 1:
+            env = FrameSkipWrapper(env, skip=c.frameskip)
+        # TODO: Add Framestack here:
+    return env
