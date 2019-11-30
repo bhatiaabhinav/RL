@@ -6,10 +6,10 @@ import numpy as np
 class SafeSACModel(SACModel):
     def tf_actor_loss(self, actor_loss_coeffs, actor_loss_alpha, actor_critics, actor_logpis, name):
         with tf.variable_scope(name):
-            violation = actor_critics[-1] - self.context.safety_threshold * self.context.safety_reward_scaling
+            violation = actor_critics[-1] - self.context.cost_threshold * self.context.cost_scaling
             c = self.context.safe_sac_penalty_max_grad  # max gradient
             b = self.context.beta
-            x = violation
+            x = -violation
             if c:
                 min_x = -b * np.log(b * c)  # at this point, grad of exp_penalty is c.
                 exp_penalty = -tf.exp(-tf.maximum(x, min_x) / b)

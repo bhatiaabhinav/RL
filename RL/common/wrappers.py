@@ -180,20 +180,19 @@ class RenderWrapper(gym.Wrapper):
             self.window.close()
 
 
-class SafetyRewardInfoWrapper(gym.Wrapper):
-    def __init__(self, env, safety_reward_extractor_fn):
+class CostInfoWrapper(gym.Wrapper):
+    def __init__(self, env, cost_extractor_fn):
         super().__init__(env)
-        self.safety_reward_extractor_fn = safety_reward_extractor_fn
+        self.cost_extractor_fn = cost_extractor_fn
 
     def step(self, action):
         o, r, d, i = self.env.step(action)
-        i['Safety_reward'] = i.get('Safety_reward', 0) + self.safety_reward_extractor_fn(o, r, d, i)
+        i['cost'] = i.get('cost', 0) + self.cost_extractor_fn(o, r, d, i)
         return o, r, d, i
 
 
 def wrap_standard(env: gym.Env, c: RL.Context):
-    if c.env_id.startswith('Safexp-'):
-        env = SafetyRewardInfoWrapper(env, lambda o, r, d, i: -i['cost'])
+    env = CostInfoWrapper(env, lambda o, r, d, i: -i.get('Safety_reward', 0))  # for compatibility with older envs
     if need_conv_net(env.observation_space):
         env = FireResetEnv(env)
         env = AtariPreprocessing(env, c.atari_noop_max, c.atari_frameskip_k, terminal_on_life_loss=c.atari_episode_life)

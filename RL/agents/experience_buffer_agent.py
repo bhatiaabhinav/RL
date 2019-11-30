@@ -1,5 +1,5 @@
 import RL
-from RL.common.experience_buffer import ExperienceBuffer, Experience, MultiRewardStreamExperience
+from RL.common.experience_buffer import ExperienceBuffer, Experience
 from typing import List
 import numpy as np
 
@@ -32,12 +32,18 @@ class ExperienceBufferAgent(RL.Agent):
     def add_to_experience_buffer(self, exp: Experience, env_id_no):
         nstep_buffer = self.nstep_buffers[env_id_no]
         reward_to_prop_back = exp.reward
+        cost_to_prop_back = exp.cost
         for old_exp in reversed(nstep_buffer):
             if old_exp.done:
                 break
             # gamma is taken as an array in case the exp is multi stream and gamma is a vector
-            reward_to_prop_back = np.asarray(self.context.gamma) * reward_to_prop_back
+            # if not np.asarray(self.context.gamma).shape == np.asarray(reward_to_prop_back).shape:
+                # RL.logger.error("Number of gammas should be same as number of rewards")
+                # raise Exception("Number of gammas should be same as number of rewards")
+            reward_to_prop_back = self.context.gamma * reward_to_prop_back
+            cost_to_prop_back = self.context.cost_gamma * cost_to_prop_back
             old_exp.reward += reward_to_prop_back
+            old_exp.cost += cost_to_prop_back
             old_exp.next_state = exp.next_state
             old_exp.done = exp.done
         nstep_buffer.append(exp)
@@ -53,6 +59,9 @@ class ExperienceBufferAgent(RL.Agent):
 
     def get_reward(self, env_id_no):
         return self.runner.rewards[env_id_no]
+
+    def get_cost(self, env_id_no):
+        return self.runner.costs[env_id_no]
 
     def get_done(self, env_id_no):
         done = self.runner.dones[env_id_no]
@@ -81,9 +90,6 @@ class ExperienceBufferAgent(RL.Agent):
     def post_act(self):
         super().post_act()
         for env_id_no in range(self.context.num_envs):
-            s, a, r, d, i, ns = self.get_state(env_id_no), self.get_action(env_id_no), self.get_reward(env_id_no), self.get_done(env_id_no), self.get_info(env_id_no), self.get_next_state(env_id_no)
-            if hasattr(r, '__len__'):
-                exp = MultiRewardStreamExperience(s, a, r, d, i, ns)
-            else:
-                exp = Experience(s, a, r, d, i, ns)
+            s, a, r, d, i, ns, c = self.get_state(env_id_no), self.get_action(env_id_no), self.get_reward(env_id_no), self.get_done(env_id_no), self.get_info(env_id_no), self.get_next_state(env_id_no), self.get_cost(env_id_no)
+            exp = Experience(s, a, r, d, i, ns, cost=c)
             self.add_to_experience_buffer(exp, env_id_no)

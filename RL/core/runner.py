@@ -25,6 +25,7 @@ class Runner:
         self.actions = [None for env in self.envs]
         self.obss = [None] * self.num_envs
         self.rewards = np.zeros(self.num_envs)
+        self.costs = np.zeros(self.num_envs)
         self.dones = np.array([True] * self.num_envs)
         self.infos = [{}] * self.num_envs
         self._agent_name_to_agent_map = {}
@@ -86,6 +87,10 @@ class Runner:
         return self.rewards[0]
 
     @property
+    def cost(self):
+        return self.costs[0]
+
+    @property
     def done(self):
         return self.dones[0]
 
@@ -121,6 +126,7 @@ class Runner:
                 self.prev_obss[env_id_no] = self.obss[env_id_no]
                 self.obss[env_id_no] = self.envs[env_id_no].reset()
                 self.rewards[env_id_no] = 0
+                self.costs[env_id_no] = 0
                 self.dones[env_id_no] = False
                 self.infos[env_id_no] = {}
                 self.num_episode_stepss[env_id_no] = 0
@@ -144,6 +150,7 @@ class Runner:
                     logger.error("No agent returned any action for env#{0} ! The environment cannot be stepped".format(env_id_no))
                     raise RuntimeError("No agent returned any action for env#{0} ! The environment cannot be stepped".format(env_id_no))
                 self.obss[env_id_no], self.rewards[env_id_no], self.dones[env_id_no], self.infos[env_id_no] = env.step(action)
+                self.costs[env_id_no] = self.infos[env_id_no].get('cost', 0)
             # post act
             [agent.post_act() for agent in self.enabled_agents()]
             # post episode for envs which are done:
@@ -195,6 +202,7 @@ class Runner:
                 self.prev_obss[0] = self.obss[0]
                 self.obss[0] = self.envs[0].reset()
                 self.rewards[0] = 0
+                self.costs[0] = 0
                 self.dones[0] = False
                 self.infos[0] = {}
                 self.num_episode_stepss[0] = 0
@@ -212,6 +220,7 @@ class Runner:
             self.prev_obss[0] = self.obss[0]
             self.actions[0] = actions_per_agent[-1]
             self.obss[0], self.rewards[0], self.dones[0], self.infos[0] = self.envs[0].step(self.actions[0])
+            self.costs[0] = self.infos[0].get('cost', 0)
             # post act
             [agent.post_act() for agent in self.enabled_agents()]
             # post episode for envs which are done:

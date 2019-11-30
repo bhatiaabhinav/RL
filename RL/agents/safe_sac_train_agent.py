@@ -10,15 +10,10 @@ class SafeSACTrainAgent(RL.Agent):
         super().__init__(context, name)
         self.sac_act_agent = sac_act_agent
         self.experience_buffer_agent = exp_buffer_agent
-        self.experience_buffer_agent.get_reward = self.get_reward
-        assert len(self.context.safety_stream_names) == 1, "Right now exactly one safety stream is supported"
         self.target_model = SafeSACModel(context, "{0}/target_model".format(name), num_actors=0, num_critics=0, num_valuefns=2)
         self.sac_act_agent.model.setup_training("{0}/training_ops".format(name))
         self.total_updates = 0
         self.critic_ids = list(range(self.context.num_critics + 1))
-
-    def get_reward(self, env_id_no):
-        return [self.runner.rewards[env_id_no]] + [self.runner.infos[env_id_no][stream_name + '_reward'] for stream_name in self.context.safety_stream_names]
 
     def pre_act(self):
         if self.context.normalize_observations:
@@ -33,23 +28,21 @@ class SafeSACTrainAgent(RL.Agent):
         assert len(Q) == len(states)
         return V_targets, safety_V_targets
 
-    def get_Q_targets_and_safety_Q_targets(self, multistream_rewards, dones, next_states):
+    def get_Q_targets_and_safety_Q_targets(self, rewards, costs, dones, next_states):
         c = self.context
-        rewards = multistream_rewards[:, 0]
-        safety_rewards = multistream_rewards[:, 1]
         next_states_all_V = self.target_model.V([0, 1], next_states)
         next_states_V = next_states_all_V[0]
         next_states_safety_V = next_states_all_V[1]
         Q_targets = rewards + (1 - dones.astype(np.int)) * (c.gamma ** c.nsteps) * next_states_V
-        safety_Q_targets = safety_rewards + (1 - dones.astype(np.int)) * (c.safety_gamma ** c.nsteps) * next_states_safety_V
+        safety_Q_targets = costs + (1 - dones.astype(np.int)) * (c.cost_gamma ** c.nsteps) * next_states_safety_V
         return Q_targets, safety_Q_targets
 
     def train(self):
         c = self.context
-        states, actions, multistream_rewards, dones, infos, next_states = self.experience_buffer_agent.experience_buffer.random_experiences_unzipped(c.minibatch_size)
+        states, actions, rewards, costs, dones, infos, next_states = self.experience_buffer_agent.experience_buffer.random_experiences_unzipped(c.minibatch_size, return_costs=True)
         noise = self.sac_act_agent.model.sample_actions_noise(len(states))
         V_targets, safety_V_targets = self.get_V_and_safety_V_targets(states, noise)
-        Q_targets, safety_Q_targets = self.get_Q_targets_and_safety_Q_targets(multistream_rewards, dones, next_states)
+        Q_targets, safety_Q_targets = self.get_Q_targets_and_safety_Q_targets(rewards, costs, dones, next_states)
         Q_targets_per_critic = [Q_targets] * c.num_critics
         # TODO: implement TD error clipping
         valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [0], [V_targets], [1])

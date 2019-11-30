@@ -6,8 +6,7 @@ import numpy as np
 class SafeSACActAgent(RL.Agent):
     def __init__(self, context: RL.Context, name):
         super().__init__(context, name)
-        assert len(self.context.safety_stream_names) > 0, "No Safety Stream!"
-        self.model = SafeSACModel(context, "{0}/model".format(name), num_actors=1, num_critics=self.context.num_critics + len(self.context.safety_stream_names), num_valuefns=1 + len(self.context.safety_stream_names))
+        self.model = SafeSACModel(context, "{0}/model".format(name), num_actors=1, num_critics=self.context.num_critics + 1, num_valuefns=2)
 
     def policy(self, model: SafeSACModel, states, exploit_modes):
         assert len(exploit_modes) == len(states)

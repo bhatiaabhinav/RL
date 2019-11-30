@@ -21,7 +21,7 @@ class Context:
     gamma = 0.99
     ignore_done_on_timelimit = True  # For time limit environments, whether to ignore done signal during bellman update
     record_returns = False  # set this to true to make basic_stats_recorder record discounted sum of rewards per episode
-    safety_reward_scaling = 1
+    cost_scaling = 1
     reward_scaling = 1  # scale environment rewards by this factor
     record_unscaled_rewards = True  # To make basic_stats_recorder compensate for reward scaling while recording stats.
     eval_mode = False  # Set this to true to disable learning and only exploit a trained model.
@@ -79,12 +79,11 @@ class Context:
     render_interval = 1
     render_vsync = False
     pyglet_fps = -1
-    safety_threshold = -0.1
+    cost_threshold = 0.1
     penalty_safe_dqn_multiplier = 10
     penalty_safe_dqn_mode = False
-    safety_stream_names = ['Safety']
-    safety_gamma = 0.995
-    safe_sac_penalty_max_grad = 50
+    cost_gamma = 1
+    safe_sac_penalty_max_grad = 1000
     load_model_dir = None
     load_every = None  # load the model every this many episodes
     frameskip = 1
