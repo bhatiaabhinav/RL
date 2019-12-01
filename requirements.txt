@@ -39,9 +39,6 @@ glfw==1.8.4
 google-pasta==0.1.7
 grpcio==1.24.0
 gym==0.15.4
-git+https://github.com/bhatiaabhinav/gym-BSS.git
-git+https://github.com/bhatiaabhinav/gym-ERSLE.git
-git+https://github.com/bhatiaabhinav/gymGame.git
 h5py==2.10.0
 idna==2.8
 imageio==2.6.1
@@ -135,3 +132,7 @@ widgetsnbextension==3.5.1
 wrapt==1.11.2
 xmltodict==0.12.0
 zmq==0.0.0
+git+https://github.com/bhatiaabhinav/gym-BSS.git
+git+https://github.com/bhatiaabhinav/gym-ERSLE.git
+git+https://github.com/bhatiaabhinav/gymGame.git
+git+https://github.com/openai/safety-gym.git
