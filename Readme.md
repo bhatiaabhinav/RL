@@ -10,12 +10,6 @@ cd RL
 python -m virtualenv env --python=python3
 source env/bin/activate
 pip install -r requirements.txt
-
-pip install git+https://github.com/bhatiaabhinav/gymGame.git
-pip install git+https://github.com/bhatiaabhinav/gym-ERSLE.git
-pip install git+https://github.com/bhatiaabhinav/gym-BSS.git
-pip install git+https://github.com/openai/safety-gym.git
-
 pip install -e .
 ```
 
@@ -29,6 +23,8 @@ Launch the corresponding module from RL/algorithms folder. `--env_id=<gym_env_id
 Specifiable hyperparameters are listed in RL/core/context.py .
 
 Example Scripts:
+
+After activating the virtualenv:
 
 For DQN:
 ```bash
