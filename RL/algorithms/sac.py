@@ -1,10 +1,10 @@
 import gym
-import safety_gym
+import safety_gym  # noqa
 
 import RL
 import RL.envs
 from RL.agents import BasicStatsRecordingAgent  # noqa: F401
-from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,
+from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,  # noqa
                        ForceExploitControlAgent, MatplotlibPlotAgent,
                        ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
                        RandomPlayAgent, RewardScalingAgent, SACActAgent,
