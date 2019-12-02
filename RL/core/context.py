@@ -158,6 +158,9 @@ class Context:
     def set_attribute(self, name, value):
         setattr(self, name, value)
 
+    def get_attribute(self, name):
+        return getattr(self, name)
+
     def _read_args(self):
         for arg in sys.argv[1:]:
             words = arg.split('=')

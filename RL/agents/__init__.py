@@ -29,3 +29,4 @@ from .sac_train_agent import SACTrainAgent  # noqa: F401
 from .safe_sac_act_agent import SafeSACActAgent  # noqa: F401
 from .safe_sac_train_agent import SafeSACTrainAgent  # noqa: F401
 from .matplotlib_plot_agent import MatplotlibPlotAgent  # noqa: F401
+from .adaptive_tuner_agent import AdaptiveParamTunerAgent  # noqa

@@ -49,7 +49,7 @@ class SafeSACTrainAgent(RL.Agent):
         safety_valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [1], [safety_V_targets], [1])
         critic_loss = self.sac_act_agent.model.train_critics(states, actions, self.critic_ids[:c.num_critics], Q_targets_per_critic, [1 / c.num_critics] * c.num_critics)
         safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [safety_Q_targets], [1])
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], c.alpha)
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], c.alpha, c.beta, c.cost_threshold)
         return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis)
 
     def post_act(self):
