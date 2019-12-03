@@ -35,12 +35,12 @@ if not c.eval_mode:
     orig_thresh = c.cost_threshold
 
     def mean_signal_fn():
-        return -(np.median(RL.stats.get('Env-0 Episode Cost')[-10:]) - orig_thresh)
+        return -(np.mean(RL.stats.get('Env-0 Episode Cost')[-10:]) - orig_thresh)
 
     # def std_signal_fn():
     #     return -(np.mean(RL.stats.get('Env-0 Episode Cost')[-10:]) - orig_thresh)
 
-    beta_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, "BetaAdaptAgent", 'beta', 0, c.beta, 0.1, 1, 0.001, mean_signal_fn))
+    # beta_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, "BetaAdaptAgent", 'beta', 0, c.beta, 0.1, 1, 0.001, mean_signal_fn))
     thresh_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, "ThreshAdaptAgent", 'cost_threshold', 0, orig_thresh, 0.1 * orig_thresh, 1.1 * orig_thresh, 0.001, mean_signal_fn))
     safe_sac_train_agent = r.register_agent(SafeSACTrainAgent(c, "SafeSACTrainAgent", safe_sac_act_agent, exp_buff_agent))
     r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", safe_sac_act_agent.model.get_vars('valuefn0', 'valuefn1', 'running_stats'), safe_sac_train_agent.target_model.get_vars('valuefn0', 'valuefn1', 'running_stats'), c.target_network_update_every, c.target_network_update_tau))

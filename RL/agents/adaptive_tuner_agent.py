@@ -17,11 +17,15 @@ class AdaptiveParamTunerAgent(RL.Agent):
         self.signal_fn = signal_fn
         self.variable_name = variable_name
 
+    def get_incr(self, signal, base_incr):
+        return np.minimum(np.maximum(np.abs(signal) * base_incr, base_incr), 100 * base_incr)
+
     def additive_adapt_fn(self, x, incr, signal):
-        x += np.sign(signal) * np.minimum(np.maximum(np.abs(signal) * incr, incr), 10 * incr)
+        x += np.sign(signal) * self.get_incr(signal, incr)
         return x
 
-    def multiplicative_adapt_fn(self, x, multiplier, signal):
+    def multiplicative_adapt_fn(self, x, incr, signal):
+        multiplier = 1 + self.get_incr(signal, incr)
         if signal > 0:
             x = x * multiplier
         elif signal < 0:
