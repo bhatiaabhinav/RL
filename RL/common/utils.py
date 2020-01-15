@@ -652,9 +652,16 @@ def tf_l2_norm(vars, exclusions=['output', 'bias'], name='l2_losses'):
 
 def tf_training_step(loss, vars, optimizer, l2_reg, clip_gradients, name, clip_gradients_by='norm'):
     with tf.variable_scope(name):
-        if l2_reg:
-            loss = loss + l2_reg * tf_l2_norm(vars)
         grads = tf.gradients(loss, vars)
+        return tf_training_step_from_grads(grads, vars, optimizer, l2_reg, clip_gradients, 'train_step_from_grads', clip_gradients_by=clip_gradients_by)
+
+
+def tf_training_step_from_grads(grads, vars, optimizer, l2_reg, clip_gradients, name, clip_gradients_by='norm'):
+    with tf.variable_scope(name):
+        if l2_reg:
+            l2_loss = l2_reg * tf_l2_norm(vars)
+            l2_grads = tf.gradients(l2_loss, vars)
+            grads = [g + l2_g for g, l2_g in zip(grads, l2_grads)]
         if clip_gradients:
             clip_gradients = float(clip_gradients)
             if clip_gradients_by == 'norm':

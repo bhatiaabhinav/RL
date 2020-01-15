@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import RL
-from RL.common.utils import tf_inputs, TfRunningStats, conv_net, auto_conv_dense_net, dense_net, tf_training_step, tf_scale, tf_clip, need_conv_net
+from RL.common.utils import tf_inputs, TfRunningStats, conv_net, auto_conv_dense_net, dense_net, tf_training_step, tf_training_step_from_grads, tf_scale, tf_clip, need_conv_net
 
 
 class SACModel:
@@ -47,7 +47,9 @@ class SACModel:
                 # actor-critics
                 self._actor_critics = [self.tf_critic(states_input_normalized, actor_actions_normalized, "critic{0}".format(i), reuse=True) for i in range(self.num_critics)]
                 # actor-loss:
-                self._actor_loss = self.tf_actor_loss(actor_loss_coeffs_input, actor_loss_alpha_input, self._actor_critics, self._actor_logpis, "actor_loss")
+                # self._actor_loss = self.tf_actor_loss(actor_loss_coeffs_input, actor_loss_alpha_input, self._actor_critics, self._actor_logpis, "actor_loss")
+                actor_trainable_vars = self.get_trainable_vars('actor')
+                self._actor_grads = self.tf_actor_grads(actor_loss_coeffs_input, actor_loss_alpha_input, self._actor_critics, self._actor_logpis, actor_trainable_vars, "actor_grads")
 
     def check_assertions(self):
         if not hasattr(self.state_space, 'dtype'):
@@ -114,6 +116,12 @@ class SACModel:
             loss = sum([-actor_loss_coeffs[i] * actor_critics[i] for i in range(self.num_critics)]) + actor_loss_alpha * actor_logpis
             loss = tf.reduce_mean(loss)
             return loss
+
+    def tf_actor_grads(self, actor_loss_coeffs, alpha, actor_critics, actor_logpis, actor_trainable_vars, name):
+        with tf.variable_scope(name):
+            self._actor_loss = self.tf_actor_loss(actor_loss_coeffs, alpha, actor_critics, actor_logpis, "actor_loss")
+            grads = tf.gradients(self._actor_loss, actor_trainable_vars)
+            return grads
 
     def tf_critics_loss(self, critics_loss_coeffs, critics, critics_targets, name):
         '''assumes the first axis is critic_id'''
@@ -186,7 +194,7 @@ class SACModel:
                 actor_trainable_vars = self.get_trainable_vars('actor')
                 actor_optimizer = tf.train.AdamOptimizer(self.context.actor_learning_rate, epsilon=self.context.adam_epsilon)
                 assert len(actor_trainable_vars) > 0, "No vars to train in actor"
-                self._actor_train_step = tf_training_step(self._actor_loss, actor_trainable_vars, actor_optimizer, self.context.actor_l2_reg, self.context.clip_gradients, "actor_train_step")
+                self._actor_train_step = tf_training_step_from_grads(self._actor_grads, actor_trainable_vars, actor_optimizer, self.context.actor_l2_reg, self.context.clip_gradients, "actor_train_step")
             # critics training
             if self.num_critics:
                 critics_trainable_vars = self.get_trainable_vars(*('critic{0}'.format(i) for i in range(self.num_critics)))

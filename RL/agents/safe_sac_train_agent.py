@@ -3,17 +3,21 @@ from RL.agents.sac_act_agent import SACActAgent
 from RL.agents.experience_buffer_agent import ExperienceBufferAgent
 from RL.models.safe_sac_model import SafeSACModel
 import numpy as np
+import random
 
 
 class SafeSACTrainAgent(RL.Agent):
-    def __init__(self, context: RL.Context, name, sac_act_agent: SACActAgent, exp_buffer_agent: ExperienceBufferAgent):
+    def __init__(self, context: RL.Context, name, sac_act_agent: SACActAgent, exp_buffer_agent: ExperienceBufferAgent, exp_buff_agent_small: ExperienceBufferAgent):
         super().__init__(context, name)
         self.sac_act_agent = sac_act_agent
         self.experience_buffer_agent = exp_buffer_agent
+        self.exp_buff_agent_small = exp_buff_agent_small
         self.target_model = SafeSACModel(context, "{0}/target_model".format(name), num_actors=0, num_critics=0, num_valuefns=2)
         self.sac_act_agent.model.setup_training("{0}/training_ops".format(name))
         self.total_updates = 0
         self.critic_ids = list(range(self.context.num_critics + 1))
+        self.start_state_buff = []
+        self.running_bias = 0  # diff between emperical on-policy cost and estimated on-policy cost
 
     def pre_act(self):
         if self.context.normalize_observations:
@@ -49,17 +53,32 @@ class SafeSACTrainAgent(RL.Agent):
         safety_valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [1], [safety_V_targets], [1])
         critic_loss = self.sac_act_agent.model.train_critics(states, actions, self.critic_ids[:c.num_critics], Q_targets_per_critic, [1 / c.num_critics] * c.num_critics)
         safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [safety_Q_targets], [1])
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], c.alpha, c.beta, c.cost_threshold)
-        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis)
+
+        # uncomment bottom two lines (and comment first two lines) to swtich to an unbiased estimate of Jc:
+        Jc_est = self.Jc_est(noise)  # this is a biased estimate. But more readily available.
+        on_policy_cost = Jc_est + self.running_bias  # less biased estimate
+        # Jc_est = 0
+        # on_policy_cost = np.mean(RL.stats.get('Env-0 Episode Cost')[-10:])  # this is an unbiased estimate.
+
+        # uncomment these two lines to change from hybrid-off-policy to uu-on-policy gradient:
+        # recent_states = self.exp_buff_agent_small.experience_buffer.random_states(c.minibatch_size)
+        # states = recent_states
+
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], on_policy_cost, c.alpha, c._lambda_scale / c.cost_threshold, c.cost_threshold)
+
+        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), Jc_est
 
     def post_act(self):
+        if self.runner.episode_step_id == 0:
+            self.start_state_buff.append(self.runner.obs)
+            # print("appended")
         c = self.context
         if self.context.normalize_actions:
             self.sac_act_agent.model.update_actions_running_stats(self.runner.actions)
         if self.runner.step_id % c.train_every == 0 and self.runner.step_id >= c.minimum_experience:
-            valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi = 0, 0, 0, 0, 0, 0, 0, 0, 0
+            valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
             for sgd_step_id in range(self.context.gradient_steps):
-                valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi = self.train()
+                valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est = self.train()
             self.total_updates += self.context.gradient_steps
             if self.runner.step_id % 10 == 0:
                 RL.stats.record("Total Updates", self.total_updates)
@@ -70,5 +89,19 @@ class SafeSACTrainAgent(RL.Agent):
                 RL.stats.record("Actor Loss", actor_loss)
                 RL.stats.record("Average Actor Critic Q", av_actor_critic_Q)
                 RL.stats.record("Average Actor Critic Safety Q", av_actor_critic_safety_Q)
+                RL.stats.record("Average Start States Cost V", Jc_est)
                 RL.stats.record("Average Action LogStd", av_logstd)
                 RL.stats.record("Average Action LogPi", av_logpi)
+
+    def Jc_est(self, noise):
+        start_states = np.asarray(random.sample(self.start_state_buff, self.context.minibatch_size))
+        start_states_actions = self.sac_act_agent.model.actions(start_states, noise=noise)
+        Jc_est = np.mean(self.sac_act_agent.model.Q([self.context.num_critics], start_states, start_states_actions)[0])
+        return Jc_est
+
+    def post_episode(self):
+        if self.runner.step_id >= self.context.minimum_experience:
+            G = RL.stats.get('Env-0 Episode Cost')[-1]
+            noise = self.sac_act_agent.model.sample_actions_noise(self.context.minibatch_size)
+            self.running_bias = 0.9 * self.running_bias + 0.1 * (G - self.Jc_est(noise))
+            RL.stats.record("Running Jc Est Bias", self.running_bias)

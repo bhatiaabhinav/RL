@@ -95,6 +95,7 @@ class Context:
     lunar_no_crash_penalty_main_stream = False
     alpha = 0.1
     beta = 0.1
+    _lambda_scale = 10
     matplotlib_smoothing = 250
 
     logstd_max = 2
