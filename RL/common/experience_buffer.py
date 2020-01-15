@@ -114,4 +114,4 @@ class ExperienceBuffer:
 
     def random_states(self, count):
         experiences = list(self.random_experiences(count))
-        return [e.state for e in experiences]
+        return np.asarray([e.state for e in experiences])
