@@ -64,7 +64,7 @@ class SafeSACTrainAgent(RL.Agent):
         # recent_states = self.exp_buff_agent_small.experience_buffer.random_states(c.minibatch_size)
         # states = recent_states
 
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], on_policy_cost, c.alpha, c._lambda_scale / c.cost_threshold, c.cost_threshold)
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], on_policy_cost, c.alpha, c._lambda_scale / (c.cost_threshold * c.cost_scaling), c.cost_threshold * c.cost_scaling)
 
         return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), Jc_est
 
@@ -94,7 +94,9 @@ class SafeSACTrainAgent(RL.Agent):
                 RL.stats.record("Average Action LogPi", av_logpi)
 
     def Jc_est(self, noise):
-        start_states = np.asarray(random.sample(self.start_state_buff, self.context.minibatch_size))
+        size = min(self.context.minibatch_size, len(self.start_state_buff))
+        start_states = np.asarray(random.sample(self.start_state_buff, size))
+        noise = noise[0:size]
         start_states_actions = self.sac_act_agent.model.actions(start_states, noise=noise)
         Jc_est = np.mean(self.sac_act_agent.model.Q([self.context.num_critics], start_states, start_states_actions)[0])
         return Jc_est

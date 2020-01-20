@@ -1,7 +1,6 @@
 import RL
 from RL.common.experience_buffer import ExperienceBuffer, Experience
 from typing import List
-import numpy as np
 
 
 class ExperienceBufferAgent(RL.Agent):
