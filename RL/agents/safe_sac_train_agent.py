@@ -44,6 +44,7 @@ class SafeSACTrainAgent(RL.Agent):
     def train(self):
         c = self.context
         states, actions, rewards, costs, dones, infos, next_states = self.experience_buffer_agent.experience_buffer.random_experiences_unzipped(c.minibatch_size, return_costs=True)
+        assert np.all(costs >= 0), "How are the costs negative?"
         noise = self.sac_act_agent.model.sample_actions_noise(len(states))
         V_targets, safety_V_targets = self.get_V_and_safety_V_targets(states, noise)
         Q_targets, safety_Q_targets = self.get_Q_targets_and_safety_Q_targets(rewards, costs, dones, next_states)
@@ -69,6 +70,7 @@ class SafeSACTrainAgent(RL.Agent):
         return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), Jc_est
 
     def post_act(self):
+        # print(self.runner.cost)
         if self.runner.episode_step_id == 0:
             self.start_state_buff.append(self.runner.obs)
             # print("appended")

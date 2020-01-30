@@ -92,6 +92,7 @@ class Context:
     atari_noop_max = 30
     atari_clip_rewards = True
     atari_episode_life = True
+    artificial_max_episode_steps = None
     lunar_no_crash_penalty_main_stream = False
     alpha = 0.1
     beta = 0.1

@@ -215,4 +215,6 @@ def wrap_standard(env: gym.Env, c: RL.Context):
         if c.frameskip > 1:
             env = FrameSkipWrapper(env, skip=c.frameskip)
         # TODO: Add Framestack here:
+    if c.artificial_max_episode_steps:
+        env = TimeLimit(env, max_episode_steps=c.artificial_max_episode_steps)
     return env
