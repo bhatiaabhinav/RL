@@ -93,6 +93,9 @@ class Context:
     atari_clip_rewards = True
     atari_episode_life = True
     artificial_max_episode_steps = None
+    observe_time = True
+    observe_cost = True
+    randomize_layout = True
     lunar_no_crash_penalty_main_stream = False
     alpha = 0.1
     beta = 0.1

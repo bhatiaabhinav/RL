@@ -1,21 +1,40 @@
+import os
+
 import gym
-import safety_gym  # noqa
 import numpy as np
 
 import RL
 import RL.envs
-from RL.agents import BasicStatsRecordingAgent
-from RL.agents import (EnvRenderingAgent, ExperienceBufferAgent,  # noqa
-                       ForceExploitControlAgent, MatplotlibPlotAgent,
-                       ModelLoaderSaverAgent, ParamsCopyAgent, PygletLoopAgent,
-                       RandomPlayAgent, RewardScalingAgent, SafeSACActAgent,
-                       SafeSACTrainAgent, SeedingAgent, StatsLoggingAgent,
-                       TensorboardAgent, TensorFlowAgent, AdaptiveParamTunerAgent)
-from RL.common.wrappers import wrap_standard
+import safety_gym  # noqa
+from RL.agents import (AdaptiveParamTunerAgent,  # noqa
+                       BasicStatsRecordingAgent, EnvRenderingAgent,
+                       ExperienceBufferAgent, ForceExploitControlAgent,
+                       MatplotlibPlotAgent, ModelLoaderSaverAgent,
+                       ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
+                       RewardScalingAgent, SafeSACActAgent, SafeSACTrainAgent,
+                       SeedingAgent, StatsLoggingAgent, TensorboardAgent,
+                       TensorFlowAgent)
+from RL.common.wrappers import CostObserveWrapper, wrap_standard
 from RL.contexts import SACContext
+from safety_gym.envs.engine import Engine
 
 c = SACContext()
-c.set_env(wrap_standard(gym.make(c.env_id), c))
+env = gym.make(c.env_id)
+if 'Safexp' in c.env_id:
+    env.config['observe_remaining'] = c.observe_time
+    env.config['randomize_layout'] = c.randomize_layout
+    if c.observe_time:
+        RL.logger.info('Including time in state space')
+    if c.artificial_max_episode_steps:
+        env.config['num_steps'] = c.artificial_max_episode_steps
+        RL.logger.info('Episode Steps set to {0}'.format(c.artificial_max_episode_steps))
+        c.artificial_max_episode_steps = None  # so that the normal timelimit wrapper is ignored later during `wrap standard` call.
+    with open(os.path.join(RL.logger.get_dir(), 'safetygym_env_config.json'), 'w') as f:
+        f.write(str(env.config))
+    env = Engine(env.config)
+    if c.observe_cost:
+        env = CostObserveWrapper(env, c.cost_threshold)
+c.set_env(wrap_standard(env, c))
 
 r = RL.Runner(c, "runner")
 
@@ -62,9 +81,9 @@ r.register_agent(TensorboardAgent(c, 'Misc-TensorboardAgent', misc_keys, 'Env-0 
 r.run()
 
 
-# for safety_gym:
+# for 100 timesteps safety_gym:
 """
-python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=safesac_hybrid_R50_L10byt_JUnbEst_dynthres_tmod2 --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=2 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=25 --safe_sac_penalty_max_grad=50 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=50 --cost_scaling=1 --record_returns=False --_lambda_scale=10
+python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=T100_safesac_R50_tau2.5_tmod2 --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=2 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=2.5 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=50 --cost_scaling=1 --record_returns=False --_lambda_scale=10 --artificial_max_episode_steps=100 --observe_time=True --observe_cost=True --randomize_layout=True
 """
 
 # the sanity test env:

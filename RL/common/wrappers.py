@@ -191,6 +191,24 @@ class CostInfoWrapper(gym.Wrapper):
         return o, r, d, i
 
 
+class CostObserveWrapper(gym.Wrapper):
+    def __init__(self, env, cost_threshold):
+        super().__init__(env)
+        self.cost_threshold = max(cost_threshold, 1e-8)
+        space = self.observation_space
+        self.observation_space = gym.spaces.Box(
+            low=np.array(list(space.low) + [0]), high=np.array(list(space.high) + [np.inf]))
+
+    def reset(self):
+        o = self.env.reset()  # type: np.ndarray
+        return np.append(o, 0 / self.cost_threshold)
+
+    def step(self, action):
+        o, r, d, i = self.env.step(action)
+        o = np.append(o, i.get('cost', 0) / self.cost_threshold)
+        return o, r, d, i
+
+
 def wrap_standard(env: gym.Env, c: RL.Context):
     env = CostInfoWrapper(env, lambda o, r, d, i: -i.get('Safety_reward', 0))  # for compatibility with older envs
     if need_conv_net(env.observation_space):
