@@ -90,7 +90,7 @@ class SACModel:
 
     def tf_actor(self, states, actions_noise, name, reuse=tf.AUTO_REUSE):
         with tf.variable_scope(name, reuse=reuse):
-            outp = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 2 * self.action_space.shape[0], lambda x: x, "conv_dense", layer_norm=self.context.layer_norm, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
+            outp = auto_conv_dense_net(need_conv_net(self.context.env.observation_space), states, self.context.convs, self.context.hidden_layers, self.context.activation_fn, 2 * self.action_space.shape[0], lambda x: x, "conv_dense", layer_norm=False, output_kernel_initializer=self.context.output_kernel_initializer, reuse=reuse)
             means = outp[:, 0:self.action_space.shape[0]]
             # logstds = tf.tanh(outp[:, self.action_space.shape[0]:])
             # logstds = tf_scale(logstds, -1, 1, self.context.logstd_min, self.context.logstd_max, 'scale_logstd')
