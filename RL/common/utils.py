@@ -661,7 +661,12 @@ def tf_training_step_from_grads(grads, vars, optimizer, l2_reg, clip_gradients, 
         if l2_reg:
             l2_loss = l2_reg * tf_l2_norm(vars)
             l2_grads = tf.gradients(l2_loss, vars)
-            grads = [g + l2_g for g, l2_g in zip(grads, l2_grads)]
+            assert len(l2_grads) == len(grads), "Grads and L2_grads length is not same!"
+            new_grads = []
+            for g, l2_g in zip(grads, l2_grads):
+                if l2_g is not None and g is not None:
+                    ng = g + l2_g
+                    new_grads.append(ng)
         if clip_gradients:
             clip_gradients = float(clip_gradients)
             if clip_gradients_by == 'norm':
