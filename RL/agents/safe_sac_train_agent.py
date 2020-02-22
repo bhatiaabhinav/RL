@@ -18,6 +18,8 @@ class SafeSACTrainAgent(RL.Agent):
         self.critic_ids = list(range(self.context.num_critics + 1))
         self.start_state_buff = []
         self.running_bias = 0  # diff between emperical on-policy cost and estimated on-policy cost
+        self.jc_est = self.context.cost_threshold
+        self.jc_est_last_n = 4
 
     def pre_act(self):
         if self.context.normalize_observations:
@@ -56,24 +58,32 @@ class SafeSACTrainAgent(RL.Agent):
         safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [safety_Q_targets], [1])
 
         # uncomment bottom two lines (and comment first two lines) to swtich to an unbiased estimate of Jc:
-        Jc_est = self.Jc_est(noise)  # this is a biased estimate. But more readily available.
-        on_policy_cost = Jc_est + self.running_bias  # less biased estimate
-        # Jc_est = 0
-        # on_policy_cost = np.mean(RL.stats.get('Env-0 Episode Cost')[-10:])  # this is an unbiased estimate.
+        # Jc_est = self.Jc_est(noise)  # this is a biased estimate. But more readily available.
+        # on_policy_cost = Jc_est + self.running_bias  # less biased estimate
+
+        if self.runner.episode_step_id == 0:
+            data = RL.stats.get('Env-0 Episode Cost')[-self.jc_est_last_n:]
+            self.jc_est = np.mean(data)
+            se = np.std(data, ddof=1) / np.sqrt(self.jc_est_last_n)
+            if 2 * se > self.jc_est or se == 0:
+                self.jc_est_last_n += 2
+            else:
+                self.jc_est_last_n -= 2
+            self.jc_est_last_n = int(np.clip(self.jc_est_last_n, 4, min(self.runner.num_episodes, 50)))
+            RL.logger.debug("n, jc±se: ", str(self.jc_est_last_n), ", ", str(self.jc_est), "±", str(np.round(se, 4)))
 
         # uncomment these two lines to change from hybrid-off-policy to uu-on-policy gradient:
         # recent_states = self.exp_buff_agent_small.experience_buffer.random_states(c.minibatch_size)
         # states = recent_states
 
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], on_policy_cost, c.alpha, c._lambda_scale / (c.cost_threshold * c.cost_scaling), c.cost_threshold * c.cost_scaling)
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], self.jc_est, c.alpha, c._lambda_scale / (c.cost_threshold * c.cost_scaling), c.cost_threshold * c.cost_scaling)
 
-        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), Jc_est
+        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), self.jc_est
 
     def post_act(self):
         # print(self.runner.cost)
-        if self.runner.episode_step_id == 0:
-            self.start_state_buff.append(self.runner.obs)
-            # print("appended")
+        # if self.runner.episode_step_id == 0:
+        #     self.start_state_buff.append(self.runner.obs)
         c = self.context
         if self.context.normalize_actions:
             self.sac_act_agent.model.update_actions_running_stats(self.runner.actions)
@@ -104,8 +114,11 @@ class SafeSACTrainAgent(RL.Agent):
         return Jc_est
 
     def post_episode(self):
-        if self.runner.step_id >= self.context.minimum_experience:
-            G = RL.stats.get('Env-0 Episode Cost')[-1]
-            noise = self.sac_act_agent.model.sample_actions_noise(self.context.minibatch_size)
-            self.running_bias = 0.9 * self.running_bias + 0.1 * (G - self.Jc_est(noise))
-            RL.stats.record("Running Jc Est Bias", self.running_bias)
+        # if self.runner.step_id >= self.context.minimum_experience:minion_policy_costimum_experience
+        #     G = RL.stats.get('Env-0 Episode Cost')[-1]
+        #     noise = self.sac_act_agent.model.sample_actions_noise(self.context.minibatch_size)
+        #     self.running_bias = 0.9 * self.running_bias + 0.1 * (G - self.Jc_est(noise))
+        # if self.jc_est is not None:
+        #     RL.stats.record("Running Jc Est Bias", self.jc_est)
+        # self.jc_est = None
+        pass

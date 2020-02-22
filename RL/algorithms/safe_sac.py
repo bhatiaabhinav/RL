@@ -1,7 +1,6 @@
 import os
 
 import gym
-import numpy as np
 
 import RL
 import RL.envs
@@ -52,10 +51,11 @@ r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", safe_sac_act_agent
 if not c.eval_mode:
     exp_buff_agent = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent"))
     exp_buff_agent_small = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent", buffer_length=10000))
+    exp_buff_agent_small.enabled = False
     orig_thresh = c.cost_threshold
 
     def mean_signal_fn():
-        return -(np.mean(RL.stats.get('Env-0 Episode Cost')[-10:]) - orig_thresh)
+        return -(safe_sac_train_agent.jc_est - orig_thresh)
 
     thresh_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, "ThreshAdaptAgent", 'cost_threshold', c.minimum_experience, c.cost_threshold, 0.1 * c.cost_threshold, 1.5 * c.cost_threshold, 0.01, mean_signal_fn, adaptation_style='additive'))
     safe_sac_train_agent = r.register_agent(SafeSACTrainAgent(c, "SafeSACTrainAgent", safe_sac_act_agent, exp_buff_agent, exp_buff_agent_small))
@@ -83,10 +83,10 @@ r.run()
 
 # for 100 timesteps safety_gym:
 """
-python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=T100_safesac_R50_tau2.5_tmod2 --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=2 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=2.5 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=50 --cost_scaling=1 --record_returns=False --_lambda_scale=10 --artificial_max_episode_steps=100 --observe_time=True --observe_cost=True --randomize_layout=True
+python -m RL.algorithms.safe_sac --env_id=Safexp-PointGoal1-v0 --experiment_name=T100_safesac_jcsmart_R50_tau2.5_tmod2 --num_steps_to_run=10000000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=2 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=2.5 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=50 --cost_scaling=1 --record_returns=False --_lambda_scale=10 --artificial_max_episode_steps=100 --observe_time=True --observe_cost=True --randomize_layout=True
 """
 
 # the sanity test env:
 """
-python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac_hybrid_R10 --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=5 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=10 --cost_scaling=1 --record_returns=False
+python -m RL.algorithms.safe_sac --env_id=MyPointCircleFinite-v0 --experiment_name=safesac_jcsmart_R10 --num_steps_to_run=150000 --normalize_observations=False --alpha=0.2 --actor_learning_rate=0.0001 --learning_rate=0.001 --target_network_update_tau=0.005 --exploit_every=8 --minimum_experience=10000 --logstd_min=-20 --logstd_max=2 --num_critics=2 --init_scale=None --l2_reg=0 --train_every=1 --experience_buffer_length=1000000 --minibatch_size=100 --hidden_layers=[256,256] --gamma=0.99 --cost_gamma=1 --layer_norm=False --cost_threshold=5 --beta=0.2 --safe_sac_penalty_max_grad=1000 --clip_gradients=1 --ignore_done_on_timelimit=False --reward_scaling=10 --cost_scaling=1 --record_returns=False
 """
