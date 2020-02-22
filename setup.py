@@ -7,24 +7,6 @@ if sys.version_info.major != 3:
 
 
 setup(name='RL',
-      install_requires=[
-          'gym[atari,classic_control]',
-          'scipy',
-          'tqdm',
-          'joblib',
-          'zmq',
-          'dill',
-          'tensorflow',
-          'keras',
-          'azure==1.0.3',
-          'progressbar2',
-          'mpi4py',
-          'matplotlib',
-          'cplex',
-          'gymGame',
-          'gym_ERSLE',
-          'gym_BSS'
-      ],
       description="Some algorithms for solving RL problems",
       author="Abhinav Bhatia",
       url='https://github.com/bhatiaabhinav/RL',
