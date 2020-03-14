@@ -6,7 +6,7 @@ import numpy as np
 class SafeSACActAgent(RL.Agent):
     def __init__(self, context: RL.Context, name):
         super().__init__(context, name)
-        self.model = SafeSACModel(context, "{0}/model".format(name), num_actors=1, num_critics=self.context.num_critics + 1, num_valuefns=2)
+        self.model = SafeSACModel(context, "{0}/model".format(name), num_actors=1, num_critics=self.context.num_critics + 2, num_valuefns=2)
 
     def policy(self, model: SafeSACModel, states, exploit_modes):
         assert len(exploit_modes) == len(states)

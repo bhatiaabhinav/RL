@@ -1,12 +1,13 @@
 import os
 
 import gym
+import numpy as np
 
 import RL
 import RL.envs
 import safety_gym  # noqa
-from RL.agents import (AdaptiveParamTunerAgent,  # noqa
-                       BasicStatsRecordingAgent, EnvRenderingAgent,
+from RL.agents import AdaptiveParamTunerAgent  # noqa
+from RL.agents import (BasicStatsRecordingAgent, EnvRenderingAgent,
                        ExperienceBufferAgent, ForceExploitControlAgent,
                        MatplotlibPlotAgent, ModelLoaderSaverAgent,
                        ParamsCopyAgent, PygletLoopAgent, RandomPlayAgent,
@@ -50,15 +51,17 @@ safe_sac_act_agent = r.register_agent(SafeSACActAgent(c, "SafeSACActAgent"))
 r.register_agent(ModelLoaderSaverAgent(c, "LoaderSaverAgent", safe_sac_act_agent.model.get_vars()))
 if not c.eval_mode:
     exp_buff_agent = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent"))
-    exp_buff_agent_small = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent", buffer_length=10000))
-    exp_buff_agent_small.enabled = False
+    exp_buff_agent_small = r.register_agent(ExperienceBufferAgent(c, "ExperienceBufferAgent", buffer_length=50000))
+    # exp_buff_agent_small.enabled = False
     orig_thresh = c.cost_threshold
 
     def mean_signal_fn():
-        return -(safe_sac_train_agent.jc_est - orig_thresh)
+        return -(RL.stats.get('Env-0 Episode Cost')[-1] - orig_thresh)
 
     thresh_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, "ThreshAdaptAgent", 'cost_threshold', c.minimum_experience, c.cost_threshold, 0.1 * c.cost_threshold, 1.5 * c.cost_threshold, 0.01, mean_signal_fn, adaptation_style='additive'))
+    # setattr(c, 'jc_est', c.cost_threshold * c.cost_scaling)
     safe_sac_train_agent = r.register_agent(SafeSACTrainAgent(c, "SafeSACTrainAgent", safe_sac_act_agent, exp_buff_agent, exp_buff_agent_small))
+    # jc_adapt_agent = r.register_agent(AdaptiveParamTunerAgent(c, 'JcAdaptAgent', 'jc_est', c.minimum_experience, c.cost_threshold * c.cost_scaling, 0, np.inf, 0.01, lambda: RL.stats.get('Env-0 Episode Cost')[-1] - c.jc_est))
     r.register_agent(ParamsCopyAgent(c, "TargetNetUpdateAgent", safe_sac_act_agent.model.get_vars('valuefn0', 'valuefn1', 'running_stats'), safe_sac_train_agent.target_model.get_vars('valuefn0', 'valuefn1', 'running_stats'), c.target_network_update_every, c.target_network_update_tau))
 
 # rendering and visualizations:
@@ -68,7 +71,7 @@ r.register_agent(PygletLoopAgent(c, "PygletLoopAgent"))
 
 # stats log:
 keys = list(filter(lambda k: k.startswith('Env-0'), RL.stats.stats_dict.keys()))
-misc_keys = ['ValueFn Loss', "Safety ValueFn Loss", 'Critic Loss', "Safety Critic Loss", 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Actor Critic Safety Q", "Average Start States Cost V", "Average Action LogStd", "Average Action LogPi", 'beta', 'cost_threshold', 'Running Jc Est Bias']
+misc_keys = ['ValueFn Loss', "Safety ValueFn Loss", 'Critic Loss', "Safety Critic Loss", 'Actor Loss', 'Total Updates', "Average Actor Critic Q", "Average Actor Critic Safety Q", "Average Start States Cost V", "Average Action LogStd", "Average Action LogPi", 'beta', 'cost_threshold', 'Running Jc Est Bias', 'Average Cost Fn Loss']
 r.register_agent(StatsLoggingAgent(c, "Env-0-StatsLoggingAgent", keys + misc_keys, poll_every_episode=1))
 
 # stats plot:

@@ -15,7 +15,7 @@ class SafeSACTrainAgent(RL.Agent):
         self.target_model = SafeSACModel(context, "{0}/target_model".format(name), num_actors=0, num_critics=0, num_valuefns=2)
         self.sac_act_agent.model.setup_training("{0}/training_ops".format(name))
         self.total_updates = 0
-        self.critic_ids = list(range(self.context.num_critics + 1))
+        self.critic_ids = list(range(self.context.num_critics)) + [self.context.num_critics + 1]
         self.start_state_buff = []
         self.running_bias = 0  # diff between emperical on-policy cost and estimated on-policy cost
         self.jc_est = self.context.cost_threshold
@@ -55,30 +55,34 @@ class SafeSACTrainAgent(RL.Agent):
         valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [0], [V_targets], [1])
         safety_valuefn_loss = self.sac_act_agent.model.train_valuefns(states, [1], [safety_V_targets], [1])
         critic_loss = self.sac_act_agent.model.train_critics(states, actions, self.critic_ids[:c.num_critics], Q_targets_per_critic, [1 / c.num_critics] * c.num_critics)
-        safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [safety_Q_targets], [1])
+        cost_fn_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics], [costs], [1])
+        safety_critic_loss = self.sac_act_agent.model.train_critics(states, actions, [c.num_critics + 1], [safety_Q_targets], [1])
 
         # uncomment bottom two lines (and comment first two lines) to swtich to an unbiased estimate of Jc:
         # Jc_est = self.Jc_est(noise)  # this is a biased estimate. But more readily available.
         # on_policy_cost = Jc_est + self.running_bias  # less biased estimate
 
-        if self.runner.episode_step_id == 0:
-            data = RL.stats.get('Env-0 Episode Cost')[-self.jc_est_last_n:]
-            self.jc_est = np.mean(data)
-            se = np.std(data, ddof=1) / np.sqrt(self.jc_est_last_n)
-            if 2 * se > self.jc_est or se == 0:
-                self.jc_est_last_n += 2
-            else:
-                self.jc_est_last_n -= 2
-            self.jc_est_last_n = int(np.clip(self.jc_est_last_n, 4, min(self.runner.num_episodes, 50)))
-            RL.logger.debug("n, jc±se: ", str(self.jc_est_last_n), ", ", str(self.jc_est), "±", str(np.round(se, 4)))
+        # if self.runner.episode_step_id == 0:
+        #     data = RL.stats.get('Env-0 Episode Cost')[-self.jc_est_last_n:]
+        #     self.jc_est = np.mean(data)
+        #     se = np.std(data, ddof=1) / np.sqrt(self.jc_est_last_n)
+        #     if 2 * se > 0.5 * self.jc_est or se == 0:
+        #         self.jc_est_last_n += 2
+        #     else:
+        #         self.jc_est_last_n -= 2
+        #     self.jc_est_last_n = int(np.clip(self.jc_est_last_n, 4, min(self.runner.num_episodes, 100)))
+        #     RL.logger.debug("n, jc±se: ", str(self.jc_est_last_n), ", ", str(self.jc_est), "±", str(np.round(se, 4)))
 
-        # uncomment these two lines to change from hybrid-off-policy to uu-on-policy gradient:
-        # recent_states = self.exp_buff_agent_small.experience_buffer.random_states(c.minibatch_size)
-        # states = recent_states
+        # self.jc_est = self.context.jc_est
 
-        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(states, noise, [0, c.num_critics], [1, 1], self.jc_est, c.alpha, c._lambda_scale / (c.cost_threshold * c.cost_scaling), c.cost_threshold * c.cost_scaling)
+        # uncomment this line to change from hybrid-off-policy to uu-on-policy gradient:
+        recent_states = self.exp_buff_agent_small.experience_buffer.random_states(c.minibatch_size)
+        av_cost = np.mean(self.sac_act_agent.model.Q([c.num_critics], recent_states, actions)[0])
+        self.jc_est = av_cost * RL.stats.get('Env-0 Episode Length')[-1]
 
-        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), self.jc_est
+        actor_loss, actor_critics_Qs, actor_logstds, actor_logpis = self.sac_act_agent.model.train_actor(recent_states, noise, [0, c.num_critics], [1, 1], self.jc_est, c.alpha, c._lambda_scale / (c.cost_threshold * c.cost_scaling), c.cost_threshold * c.cost_scaling)
+
+        return valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, np.mean(actor_critics_Qs[0]), np.mean(actor_critics_Qs[1]), np.mean(actor_logstds), np.mean(actor_logpis), self.jc_est, cost_fn_loss
 
     def post_act(self):
         # print(self.runner.cost)
@@ -88,9 +92,9 @@ class SafeSACTrainAgent(RL.Agent):
         if self.context.normalize_actions:
             self.sac_act_agent.model.update_actions_running_stats(self.runner.actions)
         if self.runner.step_id % c.train_every == 0 and self.runner.step_id >= c.minimum_experience:
-            valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est, cost_fn_loss = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
             for sgd_step_id in range(self.context.gradient_steps):
-                valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est = self.train()
+                valuefn_loss, safety_valuefn_loss, critic_loss, safety_critic_loss, actor_loss, av_actor_critic_Q, av_actor_critic_safety_Q, av_logstd, av_logpi, Jc_est, cost_fn_loss = self.train()
             self.total_updates += self.context.gradient_steps
             if self.runner.step_id % 10 == 0:
                 RL.stats.record("Total Updates", self.total_updates)
@@ -104,6 +108,7 @@ class SafeSACTrainAgent(RL.Agent):
                 RL.stats.record("Average Start States Cost V", Jc_est)
                 RL.stats.record("Average Action LogStd", av_logstd)
                 RL.stats.record("Average Action LogPi", av_logpi)
+                RL.stats.record("Average Cost Fn Loss", cost_fn_loss)
 
     def Jc_est(self, noise):
         size = min(self.context.minibatch_size, len(self.start_state_buff))

@@ -32,7 +32,9 @@ class SACModel:
             self._valuefns_targets_placeholder, valuefns_targets_input = tf_inputs([self.num_valuefns, None], tf.float32, "valuefns_targets")
             # normalized inputs:
             states_input_normalized = self._states_running_stats.normalize(states_input, "states_input_normalize") if self.context.normalize_observations else states_input
+            self._states_input_normalized = states_input_normalized
             actions_input_normalized = self._actions_running_stats.normalize(actions_input, "actions_input_normalize") if self.context.normalize_actions else actions_input
+            self._actions_input_normalized = actions_input_normalized
             # critics:
             self._critics = [self.tf_critic(states_input_normalized, actions_input_normalized, "critic{0}".format(i)) for i in range(self.num_critics)]
             self._critics_loss = self.tf_critics_loss(critics_loss_coeffs_input, self._critics, critics_targets_input, "critics_loss")
