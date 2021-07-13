@@ -1,5 +1,8 @@
 # RL
 
+This repository is very old and not maintained anymore. I now maintain https://github.com/bhatiaabhinav/RL-v2 for Python+Pytorch implementation of RL algorithms, and https://github.com/bhatiaabhinav/RL.jl for Julia+Flux implementation.
+
+
 Some algorithms for solving RL problems
 
 ## Installation
