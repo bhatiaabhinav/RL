@@ -18,7 +18,7 @@ azure-servicebus==0.20.1
 azure-servicemanagement-legacy==0.20.2
 azure-storage==0.20.3
 backcall==0.1.0
-bleach==3.1.0
+bleach==3.1.4
 box2d-py==2.3.8
 certifi==2019.9.11
 cffi==1.13.2
